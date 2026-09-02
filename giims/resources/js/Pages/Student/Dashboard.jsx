@@ -631,14 +631,6 @@ export default function Dashboard({
                                 </div>
                             </div>
                         )}
-                                                    <span>Confirm & Record Attendance</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* ────────────────────────────────────────────────────────
                             URGENT ACTION ALERTS (CBT / Coursework / Attendance)
@@ -1531,4 +1523,75 @@ export default function Dashboard({
                                     <div className={`h-11 w-11 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${
                                         isProfileComplete ? 'bg-govt-green' : 'bg-amber-500'
                                     }`}>
-                                        {isProfileComplete ? <CheckCircle2 className="
+                                        {isProfileComplete ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center space-x-2">
+                                            <h3 className="text-base font-bold text-slate-900">
+                                                Step 1: Master Profile
+                                            </h3>
+                                            <Badge variant={isProfileComplete ? 'green' : 'amber'} size="xs">
+                                                {isProfileComplete ? 'Completed' : 'Required'}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                            {isProfileComplete
+                                                ? `Permanent student identity is verified (${profile.father_name} • ${profile.domicile_district}).`
+                                                : 'Please record your guardian and domicile details before submitting an application.'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Link
+                                        href={route('student.profile.edit')}
+                                        className={`w-full py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                                            isProfileComplete
+                                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                                                : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-xs'
+                                        }`}
+                                    >
+                                        <span>{isProfileComplete ? 'Edit Master Profile' : 'Step 1: Complete Master Profile'}</span>
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </div>
+                            </Card>
+
+                            {/* Step 2: Course Application */}
+                            <Card className="p-5 flex flex-col justify-between space-y-4">
+                                <div className="flex items-start space-x-3.5">
+                                    <div className="h-11 w-11 rounded-xl bg-govt-green text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                                        <GraduationCap className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center space-x-2">
+                                            <h3 className="text-base font-bold text-slate-900">
+                                                Step 2: Submit Application
+                                            </h3>
+                                            <Badge variant="green" size="xs">
+                                                Open
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                            Select your technical trade, attach CNIC/certificate scans, and submit for merit verification.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Link
+                                        href={route('student.application.create')}
+                                        className="w-full py-2 px-4 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white text-xs font-bold transition shadow-xs flex items-center justify-center space-x-2"
+                                    >
+                                        <span>Step 2: Submit Application</span>
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </div>
+                            </Card>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </AuthenticatedLayout>
+    );
+}

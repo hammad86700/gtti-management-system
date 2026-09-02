@@ -207,4 +207,128 @@ class SelfAttendanceTest extends TestCase
 
         $response->assertSessionHas('info');
     }
+
+    public function test_student_rejected_if_outside_classroom_gps_geofence(): void
+    {
+        $session = AttendanceSession::create([
+            'batch_id' => $this->batch->id,
+            'user_id' => $this->teacher->id,
+            'session_date' => today(),
+            'start_time' => now()->format('H:i:s'),
+            'location_name' => 'Computer Lab 1 & 2 (IT Wing)',
+            'latitude' => 28.4212000,
+            'longitude' => 70.3023000,
+            'radius_meters' => 120,
+            'is_geofence_active' => true,
+            'status' => 'active',
+            'daily_pin' => '8899',
+        ]);
+
+        // Coordinates far outside campus
+        $response = $this
+            ->actingAs($this->student)
+            ->post(route('student.attendance.self-mark'), [
+                'pin' => '8899',
+                'latitude' => 28.5000000,
+                'longitude' => 70.4000000,
+            ]);
+
+        $response->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('class_attendances', [
+            'attendance_session_id' => $session->id,
+            'student_profile_id' => $this->studentProfile->id,
+        ]);
+    }
+
+    public function test_student_accepted_with_pin_and_inside_gps_boundary(): void
+    {
+        $session = AttendanceSession::create([
+            'batch_id' => $this->batch->id,
+            'user_id' => $this->teacher->id,
+            'session_date' => today(),
+            'start_time' => now()->format('H:i:s'),
+            'location_name' => 'Computer Lab 1 & 2 (IT Wing)',
+            'latitude' => 28.4212000,
+            'longitude' => 70.3023000,
+            'radius_meters' => 150,
+            'is_geofence_active' => true,
+            'status' => 'active',
+            'daily_pin' => '7733',
+        ]);
+
+        // Coordinates ~10 meters from center
+        $response = $this
+            ->actingAs($this->student)
+            ->post(route('student.attendance.self-mark'), [
+                'pin' => '7733',
+                'latitude' => 28.4212500,
+                'longitude' => 70.3023500,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('class_attendances', [
+            'attendance_session_id' => $session->id,
+            'student_profile_id' => $this->studentProfile->id,
+            'status' => 'present',
+            'method' => 'pin_gps',
+            'is_confirmed_by_teacher' => false,
+        ]);
+    }
+
+    public function test_teacher_can_confirm_attendance_from_dashboard(): void
+    {
+        $session = AttendanceSession::create([
+            'batch_id' => $this->batch->id,
+            'user_id' => $this->teacher->id,
+            'session_date' => today(),
+            'start_time' => now()->format('H:i:s'),
+            'status' => 'active',
+            'daily_pin' => '6644',
+        ]);
+
+        $attendance = ClassAttendance::create([
+            'attendance_session_id' => $session->id,
+            'student_profile_id' => $this->studentProfile->id,
+            'status' => 'present',
+            'method' => 'pin_gps',
+            'is_confirmed_by_teacher' => false,
+            'marked_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($this->teacher)
+            ->post(route('teacher.attendance.confirm', $this->batch->id));
+
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success');
+
+        $attendance->refresh();
+        $this->assertTrue($attendance->is_confirmed_by_teacher);
+        $this->assertNotNull($attendance->teacher_confirmed_at);
+        $this->assertEquals($this->teacher->id, $attendance->confirmed_by_user_id);
+    }
+
+    public function test_teacher_can_update_classroom_session_zone(): void
+    {
+        $response = $this
+            ->actingAs($this->teacher)
+            ->post(route('teacher.attendance.update-zone', $this->batch->id), [
+                'location_name' => 'Electrical & RAC Workshop',
+                'latitude' => 28.4215,
+                'longitude' => 70.3026,
+                'radius_meters' => 120,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('attendance_sessions', [
+            'batch_id' => $this->batch->id,
+            'location_name' => 'Electrical & RAC Workshop',
+            'radius_meters' => 120,
+        ]);
+    }
 }
