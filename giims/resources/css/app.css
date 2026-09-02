@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --govt-green: #00401A;
+    --govt-green-dark: #00240E;
+    --govt-green-light: #006B3F;
+    --govt-green-pale: #EDF7F1;
+    --govt-gold: #C49A1A;
+    --govt-gold-light: #EDCB57;
+    --govt-gold-pale: #FDF9EB;
+    --govt-surface: #FFFFFF;
+    --govt-canvas: #F8FAF8;
+    --govt-dark: #0F2618;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--govt-canvas);
+    color: #0F172A;
+}
+
+/* Prevent mobile browser auto-zoom on iOS/Android when focusing inputs */
+@media screen and (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Refined scrollbar for premium institutional feel */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #F1F5F1;
+}
+::-webkit-scrollbar-thumb {
+    background: #A9DCBE;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #006B3F;
+}
+
+/* Selection color */
+::selection {
+    background-color: #00401A;
+    color: #FFFFFF;
+}
+
+/* Government-style gold accent bar */
+.govt-gold-bar {
+    height: 0.25rem;
+    background-image: linear-gradient(to right, #D9AD27, #C49A1A, #D9AD27);
+}
+
+/* Institutional Card */
+.govt-card {
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+}
+
+.govt-card-accent {
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+    border-top: 3px solid #00401A;
+}
+
+/* Stat card hover */
+.govt-stat-card {
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+    padding: 1.25rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.govt-stat-card:hover {
+    box-shadow: 0 6px 16px -2px rgba(0, 64, 26, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 64, 26, 0.25);
+}
+
+/* Table styling */
+.govt-table thead th {
+    background-color: #F8FAF8;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #E2E8F0;
+}
+.govt-table tbody td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #1E293B;
+    border-bottom: 1px solid #F1F5F9;
+}
+.govt-table tbody tr:hover {
+    background-color: #F4F8F5;
+}
+
+/* Smooth transitions for interactive elements */
+.govt-transition {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Print media refinements */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    body {
+        background: white !important;
+        color: black !important;
+    }
+}
