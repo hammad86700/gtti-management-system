@@ -36,6 +36,9 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         overview_description: '',
         entry_level: 'Matric (Science/Arts)',
         admission_type: 'merit_based',
+        requires_entrance_test: true,
+        intake_capacity: 50,
+        classes_start_date: '',
         matric_weightage: 50,
         test_weightage: 40,
         interview_weightage: 10,
@@ -57,6 +60,9 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         overview_description: '',
         entry_level: '',
         admission_type: 'merit_based',
+        requires_entrance_test: true,
+        intake_capacity: 50,
+        classes_start_date: '',
         matric_weightage: 50,
         test_weightage: 40,
         interview_weightage: 10,
@@ -90,6 +96,9 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             overview_description: course.overview_description || '',
             entry_level: course.entry_level,
             admission_type: course.admission_type || 'merit_based',
+            requires_entrance_test: Boolean(course.requires_entrance_test ?? (course.admission_type !== 'first_come_first_served')),
+            intake_capacity: course.intake_capacity ?? 50,
+            classes_start_date: course.classes_start_date ? course.classes_start_date.split('T')[0] : '',
             matric_weightage: course.matric_weightage ?? 50,
             test_weightage: course.test_weightage ?? 40,
             interview_weightage: course.interview_weightage ?? 10,
@@ -181,7 +190,8 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                     <th className="py-3 px-4">Course & Category</th>
                                     <th className="py-3 px-4">Duration & Days</th>
                                     <th className="py-3 px-4">Parent Trade</th>
-                                    <th className="py-3 px-4">Admission Track</th>
+                                    <th className="py-3 px-4">Track & Quota</th>
+                                    <th className="py-3 px-4">Classes Start</th>
                                     <th className="py-3 px-3 text-center">Public Status</th>
                                     <th className="py-3 px-4 text-center">Applicants</th>
                                     <th className="py-3 px-4 text-right">Actions</th>
@@ -220,13 +230,28 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                             </div>
                                         </td>
                                         <td className="py-3.5 px-4">
-                                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                                course.admission_type === 'first_come_first_served'
-                                                    ? 'bg-blue-900/60 text-blue-300 border border-blue-700'
-                                                    : 'bg-amber-900/60 text-amber-300 border border-amber-700'
-                                            }`}>
-                                                {course.admission_type === 'first_come_first_served' ? 'FCFS Direct' : 'Merit-Based'}
-                                            </span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                    course.requires_entrance_test
+                                                        ? 'bg-amber-900/60 text-amber-300 border border-amber-700'
+                                                        : 'bg-emerald-900/60 text-emerald-300 border border-emerald-700'
+                                                }`}>
+                                                    {course.requires_entrance_test ? 'Track A: Test Required' : 'Track B: Direct FCFS'}
+                                                </span>
+                                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                                    course.is_admission_full
+                                                        ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
+                                                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                                                }`}>
+                                                    {course.is_admission_full ? '🚨 Quota Full' : `${course.current_intake_count ?? 0} / ${course.intake_capacity ?? 50} Seats`}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-4">
+                                            <div className="text-slate-300 font-mono text-[11px] flex items-center gap-1">
+                                                <Calendar className="h-3.5 w-3.5 text-amber-400" />
+                                                <span>{course.classes_start_date ? new Date(course.classes_start_date).toLocaleDateString('en-GB') : 'TBD'}</span>
+                                            </div>
                                         </td>
                                         <td className="py-3.5 px-3 text-center">
                                             {course.is_published ? (
@@ -396,6 +421,89 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 />
                             </div>
 
+                            {/* Admission Track & Quota Capacity */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                                <span className="font-bold text-amber-400 block uppercase tracking-wider text-[10px]">
+                                    Admission Track & Seat Quota Parameters
+                                </span>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div 
+                                        onClick={() => {
+                                            createForm.setData((prev) => ({
+                                                ...prev,
+                                                requires_entrance_test: true,
+                                                admission_type: 'merit_based',
+                                            }));
+                                        }}
+                                        className={`p-3 rounded-xl border cursor-pointer transition ${
+                                            createForm.data.requires_entrance_test
+                                                ? 'bg-amber-950/40 border-amber-500 text-amber-200 ring-1 ring-amber-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                        }`}
+                                    >
+                                        <div className="font-bold text-xs flex items-center justify-between">
+                                            <span>🎓 Track A: Entrance Test</span>
+                                            {createForm.data.requires_entrance_test && <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded">ACTIVE</span>}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            Candidates must take institutional entrance exam. PBTE Admit Slips and Merit List required before fee payment.
+                                        </p>
+                                    </div>
+
+                                    <div 
+                                        onClick={() => {
+                                            createForm.setData((prev) => ({
+                                                ...prev,
+                                                requires_entrance_test: false,
+                                                admission_type: 'first_come_first_served',
+                                            }));
+                                        }}
+                                        className={`p-3 rounded-xl border cursor-pointer transition ${
+                                            !createForm.data.requires_entrance_test
+                                                ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                        }`}
+                                    >
+                                        <div className="font-bold text-xs flex items-center justify-between">
+                                            <span>⚡ Track B: Direct FCFS</span>
+                                            {!createForm.data.requires_entrance_test && <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded">ACTIVE</span>}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            No entrance test. Instant fee challan generated upon submission. Strict First-Come-First-Served basis.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                    <div>
+                                        <label className="block font-bold text-slate-300 mb-1">Intake Seat Quota *</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="500"
+                                            required
+                                            placeholder="e.g. 50"
+                                            value={createForm.data.intake_capacity}
+                                            onChange={(e) => createForm.setData('intake_capacity', e.target.value)}
+                                            className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                        <span className="text-[10px] text-slate-500 mt-0.5 block">Admissions auto-close when quota is full.</span>
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-bold text-slate-300 mb-1">Official Classes Commencement Date</label>
+                                        <input
+                                            type="date"
+                                            value={createForm.data.classes_start_date}
+                                            onChange={(e) => createForm.setData('classes_start_date', e.target.value)}
+                                            className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs"
+                                        />
+                                        <span className="text-[10px] text-slate-500 mt-0.5 block">Notified to admitted students upon verification.</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-300 mb-1">Entry Eligibility *</label>
@@ -410,15 +518,13 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-300 mb-1">Admission Strategy *</label>
-                                    <select
-                                        value={createForm.data.admission_type}
-                                        onChange={(e) => createForm.setData('admission_type', e.target.value)}
-                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-bold"
-                                    >
-                                        <option value="merit_based">Merit-Based (Entrance Test + Interview)</option>
-                                        <option value="first_come_first_served">First-Come-First-Served (FCFS Direct)</option>
-                                    </select>
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode Label</label>
+                                    <input
+                                        type="text"
+                                        disabled
+                                        value={createForm.data.requires_entrance_test ? 'Merit-Based (Entrance Test + Interview)' : 'First-Come-First-Served Direct'}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs font-semibold cursor-not-allowed"
+                                    />
                                 </div>
                             </div>
 
@@ -587,6 +693,86 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 />
                             </div>
 
+                            {/* Admission Track & Quota Capacity in Edit */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                                <span className="font-bold text-amber-400 block uppercase tracking-wider text-[10px]">
+                                    Admission Track & Seat Quota Parameters
+                                </span>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div 
+                                        onClick={() => {
+                                            editForm.setData((prev) => ({
+                                                ...prev,
+                                                requires_entrance_test: true,
+                                                admission_type: 'merit_based',
+                                            }));
+                                        }}
+                                        className={`p-3 rounded-xl border cursor-pointer transition ${
+                                            editForm.data.requires_entrance_test
+                                                ? 'bg-amber-950/40 border-amber-500 text-amber-200 ring-1 ring-amber-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                        }`}
+                                    >
+                                        <div className="font-bold text-xs flex items-center justify-between">
+                                            <span>🎓 Track A: Entrance Test</span>
+                                            {editForm.data.requires_entrance_test && <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded">ACTIVE</span>}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            Candidates must take institutional entrance exam. PBTE Admit Slips and Merit List required before fee payment.
+                                        </p>
+                                    </div>
+
+                                    <div 
+                                        onClick={() => {
+                                            editForm.setData((prev) => ({
+                                                ...prev,
+                                                requires_entrance_test: false,
+                                                admission_type: 'first_come_first_served',
+                                            }));
+                                        }}
+                                        className={`p-3 rounded-xl border cursor-pointer transition ${
+                                            !editForm.data.requires_entrance_test
+                                                ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                        }`}
+                                    >
+                                        <div className="font-bold text-xs flex items-center justify-between">
+                                            <span>⚡ Track B: Direct FCFS</span>
+                                            {!editForm.data.requires_entrance_test && <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded">ACTIVE</span>}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            No entrance test. Instant fee challan generated upon submission. Strict First-Come-First-Served basis.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                    <div>
+                                        <label className="block font-bold text-slate-300 mb-1">Intake Seat Quota *</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="500"
+                                            required
+                                            value={editForm.data.intake_capacity}
+                                            onChange={(e) => editForm.setData('intake_capacity', e.target.value)}
+                                            className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-bold text-slate-300 mb-1">Official Classes Commencement Date</label>
+                                        <input
+                                            type="date"
+                                            value={editForm.data.classes_start_date}
+                                            onChange={(e) => editForm.setData('classes_start_date', e.target.value)}
+                                            className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-300 mb-1">Entry Requirement / Eligibility *</label>
@@ -600,15 +786,13 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-300 mb-1">Admission Strategy *</label>
-                                    <select
-                                        value={editForm.data.admission_type}
-                                        onChange={(e) => editForm.setData('admission_type', e.target.value)}
-                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-bold"
-                                    >
-                                        <option value="merit_based">Merit-Based (Entrance Test + Interview)</option>
-                                        <option value="first_come_first_served">First-Come-First-Served (FCFS Direct)</option>
-                                    </select>
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode Label</label>
+                                    <input
+                                        type="text"
+                                        disabled
+                                        value={editForm.data.requires_entrance_test ? 'Merit-Based (Entrance Test + Interview)' : 'First-Come-First-Served Direct'}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs font-semibold cursor-not-allowed"
+                                    />
                                 </div>
                             </div>
 

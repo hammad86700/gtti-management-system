@@ -56,6 +56,8 @@ class CourseManagementController extends Controller
             'entry_level' => 'required|string|max:100',
             'admission_type' => 'required|in:merit_based,first_come_first_served',
             'requires_entrance_test' => 'nullable|boolean',
+            'intake_capacity' => 'nullable|integer|min:1|max:500',
+            'classes_start_date' => 'nullable|date',
             'matric_weightage' => 'nullable|integer|min:0|max:100',
             'test_weightage' => 'nullable|integer|min:0|max:100',
             'interview_weightage' => 'nullable|integer|min:0|max:100',
@@ -86,6 +88,8 @@ class CourseManagementController extends Controller
             'entry_level' => $validated['entry_level'],
             'admission_type' => $validated['admission_type'],
             'requires_entrance_test' => $requiresTest,
+            'intake_capacity' => $validated['intake_capacity'] ?? 50,
+            'classes_start_date' => $validated['classes_start_date'] ?? null,
             'matric_weightage' => $validated['matric_weightage'] ?? 50,
             'test_weightage' => $validated['test_weightage'] ?? 40,
             'interview_weightage' => $validated['interview_weightage'] ?? 10,
@@ -100,10 +104,10 @@ class CourseManagementController extends Controller
             activity()
                 ->causedBy(auth()->user())
                 ->performedOn($course)
-                ->log("Admission Clerk created course '{$course->name}'");
+                ->log("Admission Clerk created course '{$course->name}' with intake capacity of {$course->intake_capacity} seats");
         }
 
-        return redirect()->back()->with('success', "Course '{$course->name}' created successfully.");
+        return redirect()->back()->with('success', "Course '{$course->name}' created successfully with intake limit of {$course->intake_capacity} seats.");
     }
 
     /**
@@ -124,6 +128,8 @@ class CourseManagementController extends Controller
             'entry_level' => 'required|string|max:100',
             'admission_type' => 'required|in:merit_based,first_come_first_served',
             'requires_entrance_test' => 'nullable|boolean',
+            'intake_capacity' => 'nullable|integer|min:1|max:500',
+            'classes_start_date' => 'nullable|date',
             'matric_weightage' => 'nullable|integer|min:0|max:100',
             'test_weightage' => 'nullable|integer|min:0|max:100',
             'interview_weightage' => 'nullable|integer|min:0|max:100',
@@ -154,6 +160,8 @@ class CourseManagementController extends Controller
             'entry_level' => $validated['entry_level'],
             'admission_type' => $validated['admission_type'],
             'requires_entrance_test' => $requiresTest,
+            'intake_capacity' => $validated['intake_capacity'] ?? ($course->intake_capacity ?: 50),
+            'classes_start_date' => array_key_exists('classes_start_date', $validated) ? $validated['classes_start_date'] : $course->classes_start_date,
             'matric_weightage' => $validated['matric_weightage'] ?? 50,
             'test_weightage' => $validated['test_weightage'] ?? 40,
             'interview_weightage' => $validated['interview_weightage'] ?? 10,

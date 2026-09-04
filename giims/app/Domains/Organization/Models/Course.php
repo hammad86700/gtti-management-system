@@ -31,6 +31,8 @@ class Course extends Model
             'is_active' => 'boolean',
             'is_published' => 'boolean',
             'requires_entrance_test' => 'boolean',
+            'intake_capacity' => 'integer',
+            'classes_start_date' => 'date',
             'duration_value' => 'integer',
             'total_academic_days' => 'integer',
             'matric_weightage' => 'integer',
@@ -45,7 +47,12 @@ class Course extends Model
      *
      * @var array<int, string>
      */
-    protected $appends = ['formatted_duration'];
+    protected $appends = [
+        'formatted_duration',
+        'remaining_seats',
+        'is_admission_full',
+        'current_intake_count'
+    ];
 
     /**
      * Get the human-readable formatted duration string.
@@ -148,6 +155,51 @@ class Course extends Model
      */
     public function isFcfs(): bool
     {
-        return ($this->admission_type ?? 'merit_based') === 'first_come_first_served';
+        return ($this->admission_type ?? 'merit_based') === 'first_come_first_served' || $this->requires_entrance_test === false;
+    }
+
+    /**
+     * Get the count of occupied intake seats.
+     */
+    public function currentIntakeCount(): int
+    {
+        if ($this->relationLoaded('applications')) {
+            return $this->applications->where('status', '!=', 'rejected')->count();
+        }
+
+        return $this->applications()->where('status', '!=', 'rejected')->count();
+    }
+
+    public function getCurrentIntakeCountAttribute(): int
+    {
+        return $this->currentIntakeCount();
+    }
+
+    /**
+     * Get remaining available intake seats.
+     */
+    public function remainingSeats(): int
+    {
+        $capacity = $this->intake_capacity ?: 50;
+        return max(0, $capacity - $this->currentIntakeCount());
+    }
+
+    public function getRemainingSeatsAttribute(): int
+    {
+        return $this->remainingSeats();
+    }
+
+    /**
+     * Determine whether the course admission is full and closed.
+     */
+    public function isAdmissionFull(): bool
+    {
+        $capacity = $this->intake_capacity ?: 50;
+        return $this->currentIntakeCount() >= $capacity;
+    }
+
+    public function getIsAdmissionFullAttribute(): bool
+    {
+        return $this->isAdmissionFull();
     }
 }

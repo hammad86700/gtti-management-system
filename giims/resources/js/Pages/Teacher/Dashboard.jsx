@@ -78,6 +78,27 @@ export default function Dashboard({
     const [reviewModalBatchId, setReviewModalBatchId] = useState(null);
     const [confirmingBatchId, setConfirmingBatchId] = useState(null);
 
+    // LMS Gatekeeping & Trainee Roster Modal State
+    const [rosterBatch, setRosterBatch] = useState(null);
+    const [togglingLmsId, setTogglingLmsId] = useState(null);
+    const [activatingBatchLms, setActivatingBatchLms] = useState(false);
+
+    const handleToggleLms = (enrollmentId) => {
+        setTogglingLmsId(enrollmentId);
+        router.post(route('teacher.enrollments.toggle-lms', enrollmentId), {}, {
+            preserveScroll: true,
+            onFinish: () => setTogglingLmsId(null),
+        });
+    };
+
+    const handleActivateBatchLms = (batchId) => {
+        setActivatingBatchLms(true);
+        router.post(route('teacher.batches.activate-lms', batchId), {}, {
+            preserveScroll: true,
+            onFinish: () => setActivatingBatchLms(false),
+        });
+    };
+
     const handleGenerateBatchPin = (batchId) => {
         setGeneratingPinBatchId(batchId);
         router.post(route('teacher.attendance.generate-batch-pin', batchId), {}, {
@@ -513,17 +534,22 @@ export default function Dashboard({
                                                     </p>
                                                 </div>
 
-                                                {/* Trainees & Duration Info */}
-                                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                                                {/* Trainees & Duration Info with LMS Gatekeeping Button */}
+                                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                                                     <div>
                                                         <p className="text-[10px] text-slate-400 font-semibold">Trainees</p>
                                                         <p className="font-bold text-slate-800">{traineesCount} Enrolled</p>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] text-slate-400 font-semibold">Duration</p>
-                                                        <p className="font-bold text-slate-800">
-                                                            {trade?.program?.duration_months || 12} Months
-                                                        </p>
+                                                    <div className="flex items-center space-x-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRosterBatch(batch)}
+                                                            className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                                                            title="Manage Trainee LMS Access & Orientation"
+                                                        >
+                                                            <ShieldCheck className="h-3.5 w-3.5 text-govt-green" />
+                                                            <span>LMS Roster ({batch.enrollments?.filter(e => e.is_lms_active).length || 0}/{traineesCount})</span>
+                                                        </button>
                                                     </div>
                                                 </div>
 
@@ -1511,6 +1537,149 @@ export default function Dashboard({
                                     className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
                                 >
                                     Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Trainee LMS Access & Orientation Modal */}
+                {rosterBatch && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                        <div className="w-full max-w-2xl rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 space-y-5 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-govt-green">
+                                        Trade Faculty LMS Gatekeeping
+                                    </span>
+                                    <h3 className="text-lg font-black text-slate-900">
+                                        {rosterBatch.name} — Trainee LMS Access Roster
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        Course: {rosterBatch.course?.name} • Session {rosterBatch.session_year || '2026-2027'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setRosterBatch(null)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Summary & Bulk Action Bar */}
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center space-x-3 text-xs">
+                                    <div>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Enrolled</span>
+                                        <span className="font-bold text-slate-800">{rosterBatch.enrollments?.length || 0}</span>
+                                    </div>
+                                    <div className="h-6 w-px bg-slate-200" />
+                                    <div>
+                                        <span className="text-[10px] text-emerald-600 font-bold uppercase block">Active LMS</span>
+                                        <span className="font-bold text-emerald-700">
+                                            {rosterBatch.enrollments?.filter(e => e.is_lms_active).length || 0}
+                                        </span>
+                                    </div>
+                                    <div className="h-6 w-px bg-slate-200" />
+                                    <div>
+                                        <span className="text-[10px] text-amber-600 font-bold uppercase block">Awaiting Orientation</span>
+                                        <span className="font-bold text-amber-700">
+                                            {rosterBatch.enrollments?.filter(e => !e.is_lms_active).length || 0}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {rosterBatch.enrollments?.some(e => !e.is_lms_active) && (
+                                    <button
+                                        type="button"
+                                        disabled={activatingBatchLms}
+                                        onClick={() => handleActivateBatchLms(rosterBatch.id)}
+                                        className="px-4 py-2 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs transition shadow-sm flex items-center space-x-1.5 shrink-0 disabled:opacity-50"
+                                    >
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        <span>{activatingBatchLms ? 'Activating Batch...' : '1-Click Activate All Inactive'}</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Trainees List Table */}
+                            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
+                                        <tr>
+                                            <th className="py-2.5 px-3">Trainee Identity</th>
+                                            <th className="py-2.5 px-3">Enrollment #</th>
+                                            <th className="py-2.5 px-3 text-center">LMS Status</th>
+                                            <th className="py-2.5 px-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {rosterBatch.enrollments && rosterBatch.enrollments.length > 0 ? (
+                                            rosterBatch.enrollments.map((enr) => {
+                                                const student = enr.student_profile?.user;
+                                                const isActive = Boolean(enr.is_lms_active);
+
+                                                return (
+                                                    <tr key={enr.id} className="hover:bg-slate-50/60 transition">
+                                                        <td className="py-2.5 px-3">
+                                                            <div className="font-bold text-slate-900">{student?.name || 'Trainee'}</div>
+                                                            <div className="text-[10px] text-slate-400">Father: {enr.student_profile?.father_name || 'N/A'}</div>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 font-mono text-[11px] font-bold text-slate-600">
+                                                            {enr.enrollment_number || 'ENR-' + enr.id}
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-center">
+                                                            {isActive ? (
+                                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                                    <span>✓ LMS Active</span>
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                                    <span>⏳ Inactive (Orientation Pending)</span>
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-right">
+                                                            <button
+                                                                type="button"
+                                                                disabled={togglingLmsId === enr.id}
+                                                                onClick={() => handleToggleLms(enr.id)}
+                                                                className={`px-3 py-1 rounded-lg font-bold text-xs transition disabled:opacity-50 ${
+                                                                    isActive
+                                                                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                                                                        : 'bg-govt-green hover:bg-govt-green-600 text-white shadow-xs'
+                                                                }`}
+                                                            >
+                                                                {togglingLmsId === enr.id
+                                                                    ? 'Updating...'
+                                                                    : isActive
+                                                                        ? 'Lock LMS'
+                                                                        : 'Activate LMS'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4" className="py-6 text-center text-slate-400 text-xs">
+                                                    No trainees enrolled in this batch yet.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setRosterBatch(null)}
+                                    className="py-2 px-4 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50"
+                                >
+                                    Close Roster
                                 </button>
                             </div>
                         </div>

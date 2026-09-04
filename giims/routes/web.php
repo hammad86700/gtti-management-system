@@ -227,6 +227,10 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::post('/batches/{batchId}/curriculum/lessons', [\App\Http\Controllers\Teacher\CurriculumRoadmapController::class, 'storeDailyLesson'])->name('curriculum.store-lesson');
     Route::patch('/curriculum/lessons/{lessonId}/toggle', [\App\Http\Controllers\Teacher\CurriculumRoadmapController::class, 'toggleCompletion'])->name('curriculum.toggle-lesson');
     Route::post('/curriculum/lessons/{lessonId}/resource', [\App\Http\Controllers\Teacher\CurriculumRoadmapController::class, 'attachResource'])->name('curriculum.attach-resource');
+
+    // Phase 33: Teacher LMS Coursework Account Activation
+    Route::post('/enrollments/{enrollmentId}/toggle-lms', [\App\Http\Controllers\Teacher\LmsActivationController::class, 'toggleLms'])->name('enrollments.toggle-lms');
+    Route::post('/batches/{batchId}/activate-lms', [\App\Http\Controllers\Teacher\LmsActivationController::class, 'activateAllBatch'])->name('batches.activate-lms');
 });
 
 // Phase 29: Direct route aliases for curriculum actions
@@ -266,6 +270,7 @@ Route::middleware(['auth', 'verified', 'role:student', 'student.active'])->prefi
 
     Route::get('/apply', [StudentApplicationController::class, 'create'])->name('application.create');
     Route::post('/apply', [StudentApplicationController::class, 'store'])->name('application.store');
+    Route::post('/applications/{id}/upload-challan', [StudentApplicationController::class, 'uploadChallanReceipt'])->name('application.upload-challan');
 
     Route::get('/lms', [StudentLmsController::class, 'index'])->name('lms.index');
     Route::post('/assignments/{assignmentId}/submit', [StudentLmsController::class, 'submitAssignment'])->name('assignments.submit');
@@ -309,6 +314,8 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::get('/applications', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'index'])->name('applications.index');
     Route::post('/applications/{id}/verify', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'verify'])->name('applications.verify');
     Route::post('/applications/{id}/reject', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'reject'])->name('applications.reject');
+    Route::post('/applications/{id}/verify-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'verifyChallanAndConfirm'])->name('applications.verify-challan');
+    Route::get('/applications/{id}/receipt', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadReceipt'])->name('applications.receipt');
     Route::get('/applications/{id}/dossier', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadDossier'])->name('applications.dossier');
 
     // 1-Click Bulk Test Scheduler & Broadcast Engine

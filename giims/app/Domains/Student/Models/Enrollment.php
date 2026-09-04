@@ -29,10 +29,20 @@ class Enrollment extends Model
      */
     protected $casts = [
         'enrollment_date' => 'date',
+        'is_lms_active' => 'boolean',
+        'lms_activated_at' => 'datetime',
         'struck_off_at' => 'datetime',
         'struck_off_until' => 'datetime',
         'struck_off_days' => 'integer',
     ];
+
+    /**
+     * Get the instructor who activated LMS coursework access.
+     */
+    public function lmsActivator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lms_activated_by');
+    }
 
     /**
      * Get the student profile for this enrollment.

@@ -32,7 +32,17 @@ class Application extends Model
             'merit_score' => 'decimal:2',
             'test_date' => 'date',
             'scrutinized_at' => 'datetime',
+            'challan_deposit_date' => 'date',
+            'challan_uploaded_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the fee challan issued for this application.
+     */
+    public function feeChallan(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Domains\Finance\Models\FeeChallan::class);
     }
 
     /**

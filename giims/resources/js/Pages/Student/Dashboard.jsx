@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     GraduationCap,
     Award,
@@ -37,7 +37,8 @@ import {
     RotateCcw,
     Scale,
     Lock,
-    Printer
+    Printer,
+    Upload
 } from 'lucide-react';
 import KpiCard from '@/Components/UI/KpiCard';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/UI/Card';
@@ -114,6 +115,24 @@ export default function Dashboard({
     const handleKeypadClear = () => {
         setPinInput('');
         setPinError('');
+    };
+
+    // Direct FCFS Challan Receipt Upload Form
+    const uploadChallanForm = useForm({
+        challan_receipt: null,
+        bank_reference: '',
+        deposit_date: new Date().toISOString().split('T')[0],
+    });
+
+    const handleChallanUpload = (appId) => (e) => {
+        e.preventDefault();
+        uploadChallanForm.post(route('student.application.upload-challan', appId), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                uploadChallanForm.reset();
+            },
+        });
     };
 
     // GPS Geofence & PIN Check-in State & Handler
@@ -1367,75 +1386,104 @@ export default function Dashboard({
                             SECTION 3: COURSEWORK ASSIGNMENTS (LMS)
                         ──────────────────────────────────────────────────────── */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center space-x-2.5">
-                                        <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-govt-green">
-                                            <FileText className="h-4 w-4" />
+                            {latestEnrollment && !latestEnrollment.is_lms_active ? (
+                                <Card className="border-amber-400/50 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-xl relative overflow-hidden">
+                                    <div className="p-6 text-center space-y-3">
+                                        <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+                                            <Lock className="h-6 w-6" />
                                         </div>
-                                        <div>
-                                            <CardTitle>Coursework Assignments</CardTitle>
-                                            <CardDescription>Practical tasks uploaded by course instructors</CardDescription>
+                                        <div className="space-y-1">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500 text-slate-950 inline-block">
+                                                LMS COURSEWORK INACTIVE
+                                            </span>
+                                            <h4 className="text-base font-black text-white">
+                                                Awaiting Instructor Verification & First-Day Class Orientation
+                                            </h4>
+                                            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                                                Your enrollment has been officially confirmed! Course assignments, practical lab logs, and syllabus blueprints will unlock once your trade instructor conducts your first-day orientation and activates your LMS.
+                                            </p>
+                                        </div>
+                                        <div className="pt-2 text-[11px] text-slate-400 font-mono flex items-center justify-center space-x-2">
+                                            <span>Enrolled Course: <strong className="text-white">{latestEnrollment.course?.name}</strong></span>
+                                            <span>•</span>
+                                            <span>Batch: <strong className="text-amber-400">{latestEnrollment.batch?.title || 'Current Batch'}</strong></span>
                                         </div>
                                     </div>
-                                    <Link
-                                        href={route('student.lms.index')}
-                                        className="text-xs font-bold text-govt-green hover:text-govt-green-600 flex items-center space-x-1"
-                                    >
-                                        <span>Open LMS</span>
-                                        <ChevronRight className="h-3.5 w-3.5" />
-                                    </Link>
-                                </CardHeader>
-
-                                <CardContent>
-                                    {assignments.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {assignments.map((assignment) => (
-                                                <div
-                                                    key={assignment.id}
-                                                    className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-start justify-between gap-3 text-xs"
-                                                >
-                                                    <div className="space-y-1 min-w-0">
-                                                        <div className="flex items-center space-x-2">
-                                                            <Badge variant="neutral" size="xs">
-                                                                {assignment.subject_name || 'Coursework'}
-                                                            </Badge>
-                                                            {assignment.is_submitted ? (
-                                                                <Badge variant="green" size="xs">
-                                                                    Submitted
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="rose" size="xs">
-                                                                    Pending
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <h4 className="font-bold text-slate-900 truncate">
-                                                            {assignment.title}
-                                                        </h4>
-                                                        <p className="text-[11px] text-slate-500">
-                                                            Due: {assignment.due_date || 'N/A'} • Max Marks: {assignment.max_marks}
-                                                        </p>
-                                                    </div>
-
-                                                    <Link
-                                                        href={route('student.lms.index')}
-                                                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 text-xs shrink-0 transition"
-                                                    >
-                                                        {assignment.is_submitted ? 'View' : 'Submit'}
-                                                    </Link>
+                                </Card>
+                            ) : (
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex items-center space-x-2.5">
+                                            <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-govt-green">
+                                                <FileText className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center space-x-2">
+                                                    <CardTitle>Coursework Assignments</CardTitle>
+                                                    <Badge variant="green" size="xs">✓ LMS Active</Badge>
                                                 </div>
-                                            ))}
+                                                <CardDescription>Practical tasks uploaded by course instructors</CardDescription>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <EmptyState
-                                            icon={FileText}
-                                            title="No Assignments Due"
-                                            description="Your course instructor has not posted any pending coursework assignments."
-                                        />
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        <Link
+                                            href={route('student.lms.index')}
+                                            className="text-xs font-bold text-govt-green hover:text-govt-green-600 flex items-center space-x-1"
+                                        >
+                                            <span>Open LMS</span>
+                                            <ChevronRight className="h-3.5 w-3.5" />
+                                        </Link>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        {assignments.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {assignments.map((assignment) => (
+                                                    <div
+                                                        key={assignment.id}
+                                                        className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-start justify-between gap-3 text-xs"
+                                                    >
+                                                        <div className="space-y-1 min-w-0">
+                                                            <div className="flex items-center space-x-2">
+                                                                <Badge variant="neutral" size="xs">
+                                                                    {assignment.subject_name || 'Coursework'}
+                                                                </Badge>
+                                                                {assignment.is_submitted ? (
+                                                                    <Badge variant="green" size="xs">
+                                                                        Submitted
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge variant="rose" size="xs">
+                                                                        Pending
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <h4 className="font-bold text-slate-900 truncate">
+                                                                {assignment.title}
+                                                            </h4>
+                                                            <p className="text-[11px] text-slate-500">
+                                                                Due: {assignment.due_date || 'N/A'} • Max Marks: {assignment.max_marks}
+                                                            </p>
+                                                        </div>
+
+                                                        <Link
+                                                            href={route('student.lms.index')}
+                                                            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 text-xs shrink-0 transition"
+                                                        >
+                                                            {assignment.is_submitted ? 'View' : 'Submit'}
+                                                        </Link>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <EmptyState
+                                                icon={FileText}
+                                                title="No Assignments Due"
+                                                description="Your course instructor has not posted any pending coursework assignments."
+                                            />
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             {/* Section 4: Examinations and Results */}
                             <Card>
@@ -1667,22 +1715,187 @@ export default function Dashboard({
                             const exam = attempt?.entrance_exam;
 
                             if (isFcfs) {
+                                const course = latestApplication.course;
+                                const isFull = course?.is_admission_full;
+                                const remainingSeats = course?.remaining_seats ?? 25;
+                                const totalSeats = course?.intake_capacity ?? 50;
+
                                 return (
-                                    <div className="rounded-2xl p-5 bg-blue-50 border border-blue-200 text-blue-950 flex items-start space-x-4">
-                                        <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 font-bold">
-                                            <CheckCircle2 className="h-6 w-6 text-blue-600" />
+                                    <div className="space-y-5">
+                                        {/* Urgency Quota Warning Card */}
+                                        <div className="rounded-2xl p-5 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                                            <div className="flex items-start space-x-3.5">
+                                                <div className="h-10 w-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 font-black shadow-md">
+                                                    <AlertTriangle className="h-5 w-5" />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-slate-950">
+                                                            URGENT SEAT QUOTA ALERT
+                                                        </span>
+                                                        <span className="text-xs font-mono font-bold text-amber-900">
+                                                            Track B: Direct First-Come, First-Served
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="font-black text-base text-amber-950">
+                                                        Pay Bank Challan Immediately to Secure Your Seat!
+                                                    </h3>
+                                                    <p className="text-xs text-amber-900/90 leading-relaxed">
+                                                        Admissions for <strong>{course?.name}</strong> close automatically once <strong>{totalSeats} seats</strong> are confirmed. 
+                                                        {isFull ? (
+                                                            <span className="font-bold text-rose-700 ml-1">🔴 Admissions are currently full.</span>
+                                                        ) : (
+                                                            <span className="font-bold text-amber-950 ml-1 underline">Only {remainingSeats} seat(s) remaining!</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0 bg-white/70 p-3 rounded-xl border border-amber-200">
+                                                <span className="text-2xl font-black font-mono text-amber-900 block">
+                                                    {remainingSeats} / {totalSeats}
+                                                </span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                                                    Available Seats
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1 flex-1">
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-200/80 text-blue-800 tracking-wider">
-                                                First-Come, First-Served (FCFS) Course
-                                            </span>
-                                            <h3 className="font-bold text-base text-blue-900">
-                                                Direct Admission Intake Track
-                                            </h3>
-                                            <p className="text-xs text-blue-800/90 leading-relaxed">
-                                                This program does not require an entrance examination. Admissions are granted directly upon document verification.
-                                                {latestApplication.status === 'selected_for_admission' ? ' Your admission is approved! Please deposit your fee challan.' : ' Please await document verification by the admissions desk.'}
-                                            </p>
+
+                                        {/* Institutional Fee Challan & Receipt Upload Card */}
+                                        <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-slate-200 shadow-xl space-y-5 print-card">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                            OFFICIAL ADMISSION FEE CHALLAN
+                                                        </span>
+                                                        <span className="text-xs font-mono font-bold text-slate-700">
+                                                            Challan #{latestApplication.fee_challan?.challan_number || `FCFS-${latestApplication.application_number}`}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-lg font-black text-slate-900">
+                                                        Admission Fee Voucher: {course?.name}
+                                                    </h3>
+                                                    <p className="text-xs text-slate-500">
+                                                        Payable at any online branch of National Bank of Pakistan (NBP), Bank of Punjab (BOP), or GTTI Accounts Counter.
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center space-x-3 shrink-0">
+                                                    <div className="text-right">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Fee Amount</span>
+                                                        <span className="text-xl font-black font-mono text-govt-green">
+                                                            PKR {latestApplication.fee_challan?.total_amount || 3500}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => window.print()}
+                                                        className="px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-2 no-print"
+                                                    >
+                                                        <Printer className="h-4 w-4" />
+                                                        <span>Print Challan</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Confirmation state if confirmed */}
+                                            {latestApplication.status === 'confirmed' ? (
+                                                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
+                                                    <div className="flex items-center space-x-2 text-emerald-800 font-black text-sm">
+                                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                                        <span>CONGRATULATIONS! ADMISSION OFFICIALLY CONFIRMED</span>
+                                                    </div>
+                                                    <p className="text-xs text-emerald-900 leading-relaxed">
+                                                        Your bank fee payment has been verified by the Admission Clerk. You are admitted to <strong>{course?.name}</strong>.
+                                                    </p>
+                                                    {course?.classes_start_date && (
+                                                        <div className="p-3.5 rounded-xl bg-white border border-emerald-200 inline-flex items-center space-x-3 shadow-xs">
+                                                            <Calendar className="h-5 w-5 text-govt-green" />
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-500 uppercase block">Classes Commencement Date</span>
+                                                                <span className="font-bold text-slate-900 text-xs font-mono">
+                                                                    {new Date(course.classes_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {latestApplication.classes_commencement_notice && (
+                                                        <div className="text-xs text-emerald-800 font-medium pt-1 border-t border-emerald-200">
+                                                            <strong>Official Notice:</strong> {latestApplication.classes_commencement_notice}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : latestApplication.challan_receipt_path ? (
+                                                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2">
+                                                    <div className="flex items-center space-x-2 text-blue-800 font-bold text-sm">
+                                                        <Clock className="h-5 w-5 text-blue-600 animate-spin" />
+                                                        <span>Paid Bank Deposit Slip Under Clerical Verification</span>
+                                                    </div>
+                                                    <p className="text-xs text-blue-800/90 leading-relaxed">
+                                                        You uploaded bank reference: <strong>{latestApplication.challan_bank_reference || 'Submitted'}</strong> on {latestApplication.challan_deposit_date ? new Date(latestApplication.challan_deposit_date).toLocaleDateString() : 'recent'}. The Admission Clerk is scrutinizing the payment slip to lock in your seat quota.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                /* Upload Bank Deposit Slip Form */
+                                                <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 no-print">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                                                            <Upload className="h-4 w-4 text-amber-500" />
+                                                            <span>Upload Paid Bank Receipt / Deposit Slip</span>
+                                                        </h4>
+                                                        <span className="text-[10px] text-slate-500 font-medium">Required to finalize admission</span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                        <div>
+                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
+                                                            <input
+                                                                type="file"
+                                                                required
+                                                                accept=".jpg,.jpeg,.png,.pdf"
+                                                                onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
+                                                                className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
+                                                            <input
+                                                                type="text"
+                                                                required
+                                                                placeholder="e.g. NBP Main Branch / Scroll #982"
+                                                                value={uploadChallanForm.data.bank_reference}
+                                                                onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
+                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
+                                                            <input
+                                                                type="date"
+                                                                required
+                                                                value={uploadChallanForm.data.deposit_date}
+                                                                onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
+                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                                                        <p className="text-[11px] text-slate-500">
+                                                            Deposit your fee at any NBP counter and upload the stamped customer copy here.
+                                                        </p>
+                                                        <button
+                                                            type="submit"
+                                                            disabled={uploadChallanForm.processing}
+                                                            className="px-5 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition disabled:opacity-50"
+                                                        >
+                                                            {uploadChallanForm.processing ? 'Uploading Slip...' : 'Submit Deposit Slip'}
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            )}
                                         </div>
                                     </div>
                                 );

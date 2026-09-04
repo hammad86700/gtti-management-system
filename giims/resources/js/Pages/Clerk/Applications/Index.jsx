@@ -26,6 +26,7 @@ export default function Index({ applications = {}, courses = [], filters = {} })
     const [dossierModal, setDossierModal] = useState(false);
     const [activeApp, setActiveApp] = useState(null);
     const [verifyingId, setVerifyingId] = useState(null);
+    const [confirmingId, setConfirmingId] = useState(null);
 
     // Reject Form
     const rejectForm = useForm({
@@ -48,6 +49,14 @@ export default function Index({ applications = {}, courses = [], filters = {} })
         router.post(route('clerk.applications.verify', appId), {}, {
             preserveScroll: true,
             onFinish: () => setVerifyingId(null),
+        });
+    };
+
+    const handleConfirmAdmission = (appId) => {
+        setConfirmingId(appId);
+        router.post(route('clerk.applications.verify-challan', appId), {}, {
+            preserveScroll: true,
+            onFinish: () => setConfirmingId(null),
         });
     };
 
@@ -206,21 +215,36 @@ export default function Index({ applications = {}, courses = [], filters = {} })
 
                                                 <td className="py-3.5 px-4">
                                                     <div className="font-semibold text-white">{app.course?.name}</div>
-                                                    <span className="text-[10px] text-slate-400 uppercase font-mono">
-                                                        {app.course?.admission_type === 'merit_based' ? 'Merit' : 'FCFS'}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                            app.course?.requires_entrance_test 
+                                                                ? 'bg-amber-950/60 text-amber-300 border border-amber-800' 
+                                                                : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
+                                                        }`}>
+                                                            {app.course?.requires_entrance_test ? 'Track A: Test Required' : 'Track B: Direct FCFS'}
+                                                        </span>
+                                                    </div>
                                                 </td>
 
                                                 <td className="py-3.5 px-4">
-                                                    <span className={`inline-block px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider ${
-                                                        isVerified
-                                                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                                            : isRejected
-                                                                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                                                                : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                                                    }`}>
-                                                        {app.status}
-                                                    </span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className={`inline-block px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider ${
+                                                            app.status === 'confirmed'
+                                                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                                                : isVerified
+                                                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                                                    : isRejected
+                                                                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                                                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                                        }`}>
+                                                            {app.status === 'confirmed' ? 'Confirmed & Admitted' : app.status}
+                                                        </span>
+                                                        {app.challan_receipt_path && app.status !== 'confirmed' && (
+                                                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[9px] font-bold bg-blue-950/80 text-blue-300 border border-blue-800">
+                                                                <span>Paid Receipt Uploaded</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {isRejected && app.clerk_remarks && (
                                                         <span className="text-[10px] text-rose-300 block mt-1 truncate max-w-xs" title={app.clerk_remarks}>
                                                             Reason: {app.clerk_remarks}
@@ -242,6 +266,20 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                                 </td>
 
                                                 <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                                                    {/* If paid receipt uploaded and not yet confirmed, 1-click Verify Fee & Confirm Admission */}
+                                                    {app.challan_receipt_path && app.status !== 'confirmed' && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={confirmingId === app.id}
+                                                            onClick={() => handleConfirmAdmission(app.id)}
+                                                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-md disabled:opacity-40"
+                                                            title="Verify Paid Bank Receipt & Confirm Admission"
+                                                        >
+                                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                                            <span>{confirmingId === app.id ? 'Confirming...' : 'Verify Fee & Confirm'}</span>
+                                                        </button>
+                                                    )}
+
                                                     {/* View Dossier */}
                                                     <button
                                                         type="button"
@@ -255,7 +293,7 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                                     {/* 1-Click Verify */}
                                                     <button
                                                         type="button"
-                                                        disabled={isVerified || verifyingId === app.id}
+                                                        disabled={isVerified || app.status === 'confirmed' || verifyingId === app.id}
                                                         onClick={() => handleVerify(app.id)}
                                                         className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs transition disabled:opacity-40"
                                                         title="Verify Applicant Dossier"
@@ -267,8 +305,9 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                                     {/* Reject with Remarks */}
                                                     <button
                                                         type="button"
+                                                        disabled={app.status === 'confirmed'}
                                                         onClick={() => handleOpenReject(app)}
-                                                        className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs transition"
+                                                        className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs transition disabled:opacity-40"
                                                         title="Reject Application with Remarks"
                                                     >
                                                         <XCircle className="h-3.5 w-3.5" />
@@ -425,6 +464,55 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                             )}
                         </div>
 
+                        {/* Paid Fee Challan & Bank Slip Section */}
+                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                                    Fee Challan & Bank Deposit Verification
+                                </span>
+                                <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded ${
+                                    activeApp.fee_status === 'paid' || activeApp.status === 'confirmed'
+                                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                        : activeApp.challan_receipt_path
+                                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                                            : 'bg-slate-800 text-slate-400'
+                                }`}>
+                                    {activeApp.status === 'confirmed' ? 'Admission Confirmed' : activeApp.fee_status || 'Pending Payment'}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                                <div>
+                                    <span className="text-[10px] text-slate-500 block">Challan #</span>
+                                    <span className="font-mono text-white font-bold">{activeApp.fee_challan?.challan_number || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 block">Bank Reference / Scroll</span>
+                                    <span className="font-mono text-amber-300 font-bold">{activeApp.challan_bank_reference || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 block">Deposit Date</span>
+                                    <span className="text-white font-mono">{activeApp.challan_deposit_date ? new Date(activeApp.challan_deposit_date).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                            </div>
+
+                            {activeApp.challan_receipt_path && (
+                                <div className="pt-2 flex items-center justify-between border-t border-slate-900">
+                                    <span className="text-xs text-slate-300 font-medium">Uploaded Bank Receipt Slip:</span>
+                                    <a
+                                        href={route('clerk.applications.receipt', activeApp.id)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 font-bold text-xs transition"
+                                    >
+                                        <FileText className="h-3.5 w-3.5" />
+                                        <span>View Bank Receipt Slip</span>
+                                        <ExternalLink className="h-3 w-3 ml-1" />
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Actions */}
                         <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
                             <button
@@ -435,15 +523,30 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                 Close Dossier
                             </button>
 
+                            {activeApp.challan_receipt_path && activeApp.status !== 'confirmed' && (
+                                <button
+                                    type="button"
+                                    disabled={confirmingId === activeApp.id}
+                                    onClick={() => {
+                                        setDossierModal(false);
+                                        handleConfirmAdmission(activeApp.id);
+                                    }}
+                                    className="py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-lg"
+                                >
+                                    Verify Fee & Confirm Admission
+                                </button>
+                            )}
+
                             <button
                                 type="button"
+                                disabled={activeApp.status === 'verified' || activeApp.status === 'confirmed'}
                                 onClick={() => {
                                     setDossierModal(false);
                                     handleVerify(activeApp.id);
                                 }}
-                                className="py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition"
+                                className="py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs transition disabled:opacity-40"
                             >
-                                Verify Candidate Now
+                                Verify Dossier
                             </button>
                         </div>
                     </div>

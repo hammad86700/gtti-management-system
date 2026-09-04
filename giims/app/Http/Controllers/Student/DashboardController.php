@@ -54,8 +54,10 @@ class DashboardController extends Controller
             'studentProfile.applications.admissionCampaign',
             'studentProfile.applications.documents',
             'studentProfile.applications.entranceTestAttempt.entranceExam',
+            'studentProfile.applications.feeChallan',
             'studentProfile.enrollments.course.trade.program.department',
             'studentProfile.enrollments.batch.teachers',
+            'studentProfile.enrollments.lmsActivator',
         ]);
 
         $profile = $user->studentProfile;

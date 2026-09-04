@@ -24,9 +24,10 @@ class ApplicationReviewController extends Controller
 
         $query = Application::with([
             'studentProfile.user',
-            'course',
+            'course.trade.program.department',
             'documents',
             'scrutinizer',
+            'feeChallan',
         ]);
 
         if ($courseId) {
@@ -190,5 +191,99 @@ class ApplicationReviewController extends Controller
                 'clerk_notice' => $application->clerk_notice,
             ],
         ]);
+    }
+
+    /**
+     * Verify paid bank fee challan receipt, confirm admission, create enrollment, and issue classes commencement notice.
+     */
+    public function verifyChallanAndConfirm(Request $request, int $id): RedirectResponse
+    {
+        $application = Application::with(['studentProfile.user', 'course', 'feeChallan'])->findOrFail($id);
+        $course = $application->course;
+
+        // 1. Mark application and fee challan as paid & confirmed
+        $commencementDate = $course?->classes_start_date 
+            ? $course->classes_start_date->format('l, d F Y')
+            : 'Monday, 15 September 2026';
+
+        $notice = "Congratulations! Your admission into '{$course?->name}' is officially confirmed. Classes commence on {$commencementDate}. Please report to the designated trade workshop for induction & biometric onboarding.";
+
+        $application->update([
+            'status' => 'confirmed',
+            'fee_status' => 'paid',
+            'classes_commencement_notice' => $notice,
+            'scrutinized_by' => auth()->id(),
+            'scrutinized_at' => now(),
+        ]);
+
+        if ($application->feeChallan) {
+            $application->feeChallan->update([
+                'status' => 'paid',
+                'amount_paid' => $application->feeChallan->amount ?: 2500.00,
+                'paid_at' => $application->challan_deposit_date ?: now(),
+            ]);
+        }
+
+        // 2. Create official Enrollment with is_lms_active = false (Awaiting Teacher first-day orientation activation)
+        $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)->first();
+        if (!$batch) {
+            $batch = \App\Domains\Organization\Models\Batch::create([
+                'course_id' => $course->id,
+                'name' => $course->name . ' - Session ' . date('Y'),
+                'session_year' => date('Y') . '-' . (date('Y') + 1),
+                'shift' => 'morning',
+            ]);
+        }
+
+        $enrollment = \App\Domains\Student\Models\Enrollment::firstOrCreate(
+            [
+                'student_profile_id' => $application->student_profile_id,
+                'course_id' => $course->id,
+            ],
+            [
+                'batch_id' => $batch->id,
+                'enrollment_number' => 'GTTI-' . date('Y') . '-' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                'enrollment_date' => now()->toDateString(),
+                'status' => 'active',
+                'is_lms_active' => false,
+            ]
+        );
+
+        // Assign student role to user
+        $studentRole = \App\Domains\Identity\Models\Role::where('slug', 'student')->first();
+        if ($studentRole && $application->studentProfile?->user) {
+            $application->studentProfile->user->roles()->syncWithoutDetaching([$studentRole->id]);
+        }
+
+        // Broadcast institutional announcement to student
+        \App\Domains\Operations\Models\Announcement::create([
+            'created_by' => auth()->id(),
+            'title' => "Official Admission Confirmed: {$course->name}",
+            'message' => "Candidate {$application->studentProfile?->user?->name} (App #{$application->application_number}) fee payment verified. {$notice}",
+            'target_audience' => 'students',
+        ]);
+
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($application)
+                ->log("Admission Clerk verified fee receipt and confirmed admission for '{$application->studentProfile?->user?->name}' into '{$course->name}'");
+        }
+
+        return redirect()->back()->with('success', "Admission officially confirmed for applicant {$application->studentProfile?->user?->name}! Fee marked paid and commencement notice issued.");
+    }
+
+    /**
+     * Download or view uploaded paid challan receipt file.
+     */
+    public function downloadReceipt(int $id)
+    {
+        $application = Application::findOrFail($id);
+
+        if (!$application->challan_receipt_path || !\Illuminate\Support\Facades\Storage::disk('local')->exists($application->challan_receipt_path)) {
+            return redirect()->back()->with('error', 'Challan payment receipt document not found.');
+        }
+
+        return response()->file(\Illuminate\Support\Facades\Storage::disk('local')->path($application->challan_receipt_path));
     }
 }
