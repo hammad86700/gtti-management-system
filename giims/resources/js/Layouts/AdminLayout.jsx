@@ -73,20 +73,6 @@ export default function AdminLayout({ header, children }) {
                     badge: 'Review',
                 },
                 {
-                    name: 'Clerk Scrutiny Desk',
-                    href: route('clerk.applications.index'),
-                    active: route().current('clerk.applications.*'),
-                    icon: FileCheck,
-                    badge: 'Clerk Ops',
-                },
-                {
-                    name: 'Broadcast Scheduler',
-                    href: route('clerk.scheduler.index'),
-                    active: route().current('clerk.scheduler.*'),
-                    icon: Send,
-                    badge: '1-Click',
-                },
-                {
                     name: 'Merit Gazettes',
                     href: route('admin.merit.index'),
                     active: route().current('admin.merit.*'),
@@ -98,13 +84,6 @@ export default function AdminLayout({ header, children }) {
                     active: route().current('admin.result-approvals.*'),
                     icon: Award,
                     badge: 'Results',
-                },
-                {
-                    name: 'CBT Exam System',
-                    href: route('teacher.exam-system.dashboard'),
-                    active: route().current('teacher.exam-system.*') || route().current('exam-system.*'),
-                    icon: Monitor,
-                    badge: 'CBT',
                 },
                 {
                     name: 'Trades & Curriculum',
@@ -131,13 +110,6 @@ export default function AdminLayout({ header, children }) {
                     badge: 'Dues',
                 },
                 {
-                    name: 'Bank Scroll Desk',
-                    href: route('clerk.fees.reconciliation'),
-                    active: route().current('clerk.fees.*'),
-                    icon: CreditCard,
-                    badge: 'Auto-Clear',
-                },
-                {
                     name: 'Payroll & Claims',
                     href: route('admin.reports.index'),
                     active: route().current('admin.reports.*'),
@@ -148,6 +120,13 @@ export default function AdminLayout({ header, children }) {
         {
             label: 'OPERATIONS',
             items: [
+                {
+                    name: 'Campus Broadcasts',
+                    href: route('admin.announcements.index'),
+                    active: route().current('admin.announcements.*'),
+                    icon: Megaphone,
+                    badge: 'Live',
+                },
                 {
                     name: 'Workshop Store',
                     href: route('admin.inventory.index'),
@@ -162,14 +141,7 @@ export default function AdminLayout({ header, children }) {
                     icon: ShieldAlert,
                 },
                 {
-                    name: 'Gate Biometrics',
-                    href: route('security.gate.index'),
-                    active: route().current('security.gate.*'),
-                    icon: ShieldCheck,
-                    badge: 'Live',
-                },
-                {
-                    name: 'Alumni & Jobs',
+                    name: 'Alumni & Placements',
                     href: route('admin.alumni.index'),
                     active: route().current('admin.alumni.*'),
                     icon: Briefcase,
@@ -180,12 +152,6 @@ export default function AdminLayout({ header, children }) {
                     active: route().current('admin.apprenticeships.*'),
                     icon: Briefcase,
                     badge: 'TEVTA',
-                },
-                {
-                    name: 'Official Notices',
-                    href: route('admin.announcements.index'),
-                    active: route().current('admin.announcements.*'),
-                    icon: Megaphone,
                 },
             ],
         },
@@ -222,6 +188,53 @@ export default function AdminLayout({ header, children }) {
                     active: route().current('admin.reports.*'),
                     icon: FileSpreadsheet,
                     badge: 'TEVTA',
+                },
+            ],
+        },
+        {
+            label: 'EXECUTIVE OVERSIGHT (STAFF DESKS)',
+            items: [
+                {
+                    name: 'Admission Clerk Desk',
+                    href: route('clerk.dashboard'),
+                    active: route().current('clerk.dashboard'),
+                    icon: FileCheck,
+                    badge: 'Clerk Desk',
+                },
+                {
+                    name: 'Bulk Test Scheduler',
+                    href: route('clerk.scheduler.index'),
+                    active: route().current('clerk.scheduler.*'),
+                    icon: Send,
+                    badge: 'Admissions',
+                },
+                {
+                    name: 'Bank Scroll Desk',
+                    href: route('clerk.fees.reconciliation'),
+                    active: route().current('clerk.fees.*'),
+                    icon: CreditCard,
+                    badge: 'Auto-Clear',
+                },
+                {
+                    name: 'Faculty Academic Portal',
+                    href: route('teacher.dashboard'),
+                    active: route().current('teacher.dashboard'),
+                    icon: Users,
+                    badge: 'Faculty',
+                },
+                {
+                    name: 'CBT Exam System Hub',
+                    href: route('teacher.exam-system.dashboard'),
+                    active: route().current('teacher.exam-system.*') || route().current('exam-system.*'),
+                    icon: Monitor,
+                    badge: 'CBT Hub',
+                },
+                {
+                    name: 'Gate Security Terminal',
+                    href: route('security.gate.index'),
+                    active: route().current('security.gate.*'),
+                    icon: ShieldCheck,
+                    badge: 'Gatehouse',
                 },
             ],
         },

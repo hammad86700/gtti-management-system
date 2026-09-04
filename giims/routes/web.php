@@ -121,6 +121,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(fu
 
     Route::get('/announcements', [AdminAnnouncementController::class, 'index'])->name('admin.announcements.index');
     Route::post('/announcements', [AdminAnnouncementController::class, 'store'])->name('admin.announcements.store');
+    Route::delete('/announcements/{announcement}', [AdminAnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
 
     Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
     Route::get('/reports/students/export', [AdminReportController::class, 'exportStudents'])->name('admin.reports.students.export');

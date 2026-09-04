@@ -47,4 +47,14 @@ class AnnouncementController extends Controller
 
         return redirect()->back()->with('success', 'Announcement published and broadcast successfully across portals.');
     }
+
+    /**
+     * Revoke / delete an institutional announcement.
+     */
+    public function destroy(Announcement $announcement): RedirectResponse
+    {
+        $announcement->delete();
+
+        return redirect()->back()->with('success', 'Announcement revoked successfully.');
+    }
 }

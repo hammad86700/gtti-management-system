@@ -58,12 +58,18 @@ export default function AuthenticatedLayout({ header, children }) {
         user?.roles?.some(r => ['security-officer', 'security'].includes(r.slug))
     );
 
-    // Determine role label & navigation groups
+    // Determine role label & navigation groups based on current route context and permissions
     let roleLabel = 'Trainee';
     let defaultBreadcrumb = 'Student Portal';
     let navGroups = [];
 
-    if (isAdmin) {
+    const isTeacherRoute = route().current('teacher.*') || route().current('allocations.*');
+    const isTeacherContext = isTeacherRoute || (!isAdmin && isTeacher);
+    const isSecurityRoute = route().current('security.*');
+    const isSecurityContext = isSecurityRoute || (!isAdmin && isSecurity);
+    const isStudentRoute = route().current('student.*') || route().current('dashboard');
+
+    if (isAdmin && !isTeacherRoute && !isStudentRoute && !isSecurityRoute) {
         roleLabel = 'Admin';
         defaultBreadcrumb = 'Admin Console';
         navGroups = [
@@ -106,8 +112,8 @@ export default function AuthenticatedLayout({ header, children }) {
                 ],
             },
         ];
-    } else if (isTeacher) {
-        roleLabel = 'Faculty';
+    } else if (isTeacherContext) {
+        roleLabel = isAdmin ? 'Faculty (Oversight)' : 'Faculty';
         defaultBreadcrumb = 'Instructor Command Center';
         navGroups = [
             {
@@ -313,6 +319,32 @@ export default function AuthenticatedLayout({ header, children }) {
 
     return (
         <div className="min-h-screen bg-[#F4F6F8] text-slate-900 flex flex-col antialiased font-sans">
+            {/* Executive Authority Banner for Principal / Super Admin inspecting subordinate portals */}
+            {isAdmin && (isTeacherRoute || isStudentRoute || isSecurityRoute) && (
+                <div className="bg-[#0B3B24] border-b border-emerald-600/50 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-white shadow-md z-50 sticky top-0">
+                    <div className="flex items-center space-x-2.5">
+                        <div className="p-1 rounded-md bg-emerald-500/20 text-emerald-300">
+                            <Shield className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <span className="font-extrabold uppercase tracking-wider text-[11px] text-emerald-300 mr-2">
+                                Institutional Executive Oversight
+                            </span>
+                            <span className="text-emerald-100 hidden md:inline">
+                                You are inspecting {isTeacherRoute ? 'Faculty Academic Operations' : isSecurityRoute ? 'Gate Security Logs' : 'Student & Trainee Portal'} with Principal Authority.
+                            </span>
+                        </div>
+                    </div>
+                    <Link
+                        href={route('admin.dashboard')}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+                    >
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        <span>Return to Admin Command Center</span>
+                    </Link>
+                </div>
+            )}
+
             {/* Mobile Sidebar Overlay */}
             {sidebarOpen && (
                 <div
