@@ -65,6 +65,30 @@ class GateController extends Controller
         $profile = $enrollment->studentProfile;
         $user = $profile->user;
 
+        $isProfileActive = true;
+        $sanctionMessage = null;
+
+        if ($profile->status === 'struck_off') {
+            if ($profile->struck_off_until && now()->greaterThan($profile->struck_off_until)) {
+                $profile->update([
+                    'status' => 'active',
+                    'struck_off_at' => null,
+                    'struck_off_until' => null,
+                    'struck_off_days' => null,
+                    'termination_reason' => null,
+                ]);
+                $enrollment->update(['status' => 'active']);
+            } else {
+                $isProfileActive = false;
+                $sanctionMessage = 'ENTRY DENIED: Trainee is temporarily struck-off until ' . ($profile->struck_off_until?->format('d M Y') ?? 'further notice') . '.';
+            }
+        } elseif ($profile->status === 'terminated') {
+            $isProfileActive = false;
+            $sanctionMessage = 'ENTRY FORBIDDEN: Trainee has been permanently terminated / expelled from college.';
+        }
+
+        $isActive = $isProfileActive && $enrollment->status === 'active';
+
         return response()->json([
             'found' => true,
             'student' => [
@@ -76,8 +100,9 @@ class GateController extends Controller
                 'course' => $enrollment->course->name,
                 'batch' => $enrollment->batch->name,
                 'shift' => $enrollment->batch->shift,
-                'status' => $enrollment->status,
-                'is_active' => $enrollment->status === 'active',
+                'status' => $profile->status !== 'active' ? $profile->status : $enrollment->status,
+                'is_active' => $isActive,
+                'sanction_message' => $sanctionMessage,
                 'domicile' => $profile->domicile_district ?? 'Rahim Yar Khan',
             ],
         ]);

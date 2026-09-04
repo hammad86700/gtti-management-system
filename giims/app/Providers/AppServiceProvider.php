@@ -12,7 +12,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            \App\Domains\Shared\Services\Notification\SmsGatewayInterface::class,
+            function () {
+                $driver = config('services.sms.driver', 'log');
+
+                return match ($driver) {
+                    'generic_http' => new \App\Domains\Shared\Services\Notification\Drivers\GenericHttpSmsDriver(),
+                    default        => new \App\Domains\Shared\Services\Notification\Drivers\LogSmsDriver(),
+                };
+            }
+        );
     }
 
     /**

@@ -48,7 +48,7 @@ class RoleMiddleware
         foreach ($expandedRoles as $role) {
 
             if ($role === "admin") {
-                $adminSlugs = ["super-admin", "admin", "principal", "trade-incharge", "admission-clerk"];
+                $adminSlugs = ["super-admin", "admin", "principal", "administrator", "admission-clerk"];
                 $hasAdminRole = $user->roles->contains(function ($r) use ($adminSlugs) {
                     return in_array($r->slug, $adminSlugs) || in_array(strtolower($r->name), $adminSlugs);
                 });
@@ -69,6 +69,14 @@ class RoleMiddleware
                     return in_array($r->slug, $securitySlugs) || in_array(strtolower($r->name), $securitySlugs);
                 });
                 if ($hasSecurityRole) {
+                    return $next($request);
+                }
+            } elseif ($role === "clerk") {
+                $clerkSlugs = ["clerk", "admission-clerk", "admission-officer"];
+                $hasClerkRole = $user->roles->contains(function ($r) use ($clerkSlugs) {
+                    return in_array($r->slug, $clerkSlugs) || in_array(strtolower($r->name), $clerkSlugs);
+                });
+                if ($hasClerkRole) {
                     return $next($request);
                 }
             } elseif ($role === "student") {

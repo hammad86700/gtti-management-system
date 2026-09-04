@@ -31,7 +31,13 @@ import {
     RefreshCw,
     Key,
     Smartphone,
-    X
+    X,
+    ShieldAlert,
+    Ban,
+    RotateCcw,
+    Scale,
+    Lock,
+    Printer
 } from 'lucide-react';
 import KpiCard from '@/Components/UI/KpiCard';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/UI/Card';
@@ -40,6 +46,7 @@ import EmptyState from '@/Components/UI/EmptyState';
 
 export default function Dashboard({
     userData,
+    sanction = null,
     announcements = [],
     onlineTests = [],
     pendingTestsCount = 0,
@@ -260,18 +267,174 @@ export default function Dashboard({
         year: 'numeric',
     }).format(new Date());
 
-    return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
-                    <span className="font-bold text-govt-green">GTTI RYK</span>
-                    <span>/</span>
-                    <span className="text-slate-900 font-semibold truncate">
-                        {isEnrolled ? 'Student Academic Dashboard' : 'Applicant Portal'}
-                    </span>
+    // =========================================================================
+    // SANCTION LOCKDOWN SCREEN (STRUCK-OFF OR PERMANENTLY TERMINATED)
+    // =========================================================================
+    if (sanction) {
+        const isTerminated = sanction.type === 'terminated';
+        const isStruckOff = sanction.type === 'struck_off';
+
+        return (
+            <AuthenticatedLayout
+                header={
+                    <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+                        <span className="font-bold text-rose-600">GTTI Discipline</span>
+                        <span>/</span>
+                        <span className="text-slate-900 font-semibold truncate">
+                            {isTerminated ? 'Official Expulsion Order' : 'Academic Suspension Order'}
+                        </span>
+                    </div>
+                }
+            >
+                <Head title={isTerminated ? "Admission Terminated - GTTI RYK" : "Dashboard Suspended - GTTI RYK"} />
+
+                <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-6">
+                    {/* Official Banner */}
+                    <div
+                        className={`rounded-3xl p-8 border shadow-xl text-center relative overflow-hidden ${
+                            isTerminated
+                                ? 'bg-gradient-to-b from-rose-950 via-slate-900 to-slate-950 text-white border-rose-600/40'
+                                : 'bg-gradient-to-b from-amber-950 via-slate-900 to-slate-950 text-white border-amber-500/40'
+                        }`}
+                    >
+                        {/* Background watermark badge */}
+                        <div className="absolute -right-12 -bottom-12 opacity-10 pointer-events-none">
+                            <Scale className="w-80 h-80" />
+                        </div>
+
+                        <div className="relative z-10 max-w-2xl mx-auto space-y-4">
+                            {/* Emblem */}
+                            <div className="inline-flex p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
+                                {isTerminated ? (
+                                    <Ban className="h-12 w-12 text-rose-500" />
+                                ) : (
+                                    <Clock className="h-12 w-12 text-amber-400 animate-pulse" />
+                                )}
+                            </div>
+
+                            <div className="space-y-1">
+                                <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-white/15 border border-white/20 text-white">
+                                    Govt Technical Training Institute Rahim Yar Khan • Principal Office
+                                </span>
+                                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-2">
+                                    {isTerminated ? 'STUDENT ADMISSION TERMINATED & EXPELLED' : 'STUDENT TEMPORARILY STRUCK-OFF THE ROLLS'}
+                                </h1>
+                                <p className="text-xs sm:text-sm text-gray-300">
+                                    {isTerminated
+                                        ? 'Your student admission and dashboard access have been permanently closed.'
+                                        : `Your student dashboard is suspended for ${sanction.struck_off_days || 7} days by administrative order.`}
+                                </p>
+                            </div>
+
+                            {/* Live Countdown for Struck-Off */}
+                            {isStruckOff && (
+                                <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-400/30 backdrop-blur-md inline-block text-center px-8">
+                                    <p className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                                        Suspension Period Remaining
+                                    </p>
+                                    <p className="text-3xl font-black text-amber-400 mt-1">
+                                        {sanction.remaining_days} {sanction.remaining_days === 1 ? 'Day' : 'Days'}
+                                    </p>
+                                    <p className="text-[11px] text-gray-300 mt-1">
+                                        Access automatically reopens on: <span className="font-bold text-white">{sanction.struck_off_until}</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Official Order Details Card */}
+                    <div className="rounded-3xl bg-white border border-gray-200 shadow-md p-6 sm:p-8 space-y-6">
+                        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                            <div>
+                                <h3 className="text-base font-black text-gray-900">
+                                    Official Disciplinary Order Summary
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                    Executive sanction decree under Institutional Regulations & TEVTA Code
+                                </p>
+                            </div>
+                            {sanction.order_reference && (
+                                <span className="px-3 py-1 rounded-xl bg-gray-100 font-mono text-xs font-bold text-gray-700 border border-gray-200">
+                                    Order: {sanction.order_reference}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                                <span className="text-gray-400 text-[10px] font-bold uppercase">Candidate Name</span>
+                                <p className="font-bold text-gray-900 text-sm">{user?.name}</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                                <span className="text-gray-400 text-[10px] font-bold uppercase">Registration / Roll No.</span>
+                                <p className="font-bold text-gray-900 text-sm">{profile?.registration_number || latestEnrollment?.enrollment_number || 'N/A'}</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                                <span className="text-gray-400 text-[10px] font-bold uppercase">Course & Trade</span>
+                                <p className="font-bold text-gray-900">{latestEnrollment?.course?.name || 'Technical Trade'}</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                                <span className="text-gray-400 text-[10px] font-bold uppercase">Sanction Issue Date</span>
+                                <p className="font-bold text-gray-900">{sanction.struck_off_at || 'Administrative Record'}</p>
+                            </div>
+                        </div>
+
+                        {/* Stated Reason & Grounds */}
+                        <div className="p-5 rounded-2xl bg-rose-50/70 border border-rose-200 space-y-2">
+                            <div className="flex items-center space-x-2 text-rose-800 font-bold text-xs">
+                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                                <span>Recorded Grounds for Disciplinary Sanction:</span>
+                            </div>
+                            <p className="text-xs text-rose-950 font-medium pl-6 leading-relaxed">
+                                {sanction.reason || 'Breach of institutional code of conduct and attendance regulations.'}
+                            </p>
+                        </div>
+
+                        {/* Functional Lock Notice */}
+                        <div className="p-5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-600 space-y-2">
+                            <div className="flex items-center space-x-2 text-gray-900 font-bold">
+                                <Lock className="h-4 w-4 text-gray-700" />
+                                <span>Portal & Campus Services Status:</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-1 text-gray-600 text-[11px] pl-2">
+                                <li><strong>Online CBT Tests:</strong> Access disabled during penalty period.</li>
+                                <li><strong>LMS Coursework & Assignments:</strong> Submissions and task views locked.</li>
+                                <li><strong>Classroom Attendance:</strong> Barred from clocking digital or biometric check-ins.</li>
+                                <li><strong>Campus Entry:</strong> Security gate barcode clearance suspended.</li>
+                            </ul>
+                        </div>
+
+                        {/* Directives for Clearance or Appeal */}
+                        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+                            <p className="text-gray-500 text-[11px]">
+                                {isTerminated
+                                    ? 'To apply for formal departure clearance or retrieve original documents, contact the Principal Office.'
+                                    : 'Parents or guardians wishing to submit a review petition must appear in person before the Disciplinary Board.'}
+                            </p>
+
+                            <div className="flex items-center space-x-2 shrink-0">
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    className="py-2.5 px-5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs shadow-sm transition-all"
+                                >
+                                    Log Out Securely
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            }
-        >
+            </AuthenticatedLayout>
+        );
+    }
+
+    return (
+        <AuthenticatedLayout>
             <Head title={isEnrolled ? "Student Academic Dashboard - GTTI RYK" : "Applicant Dashboard - GTTI RYK"} />
 
             <div className="space-y-6">
@@ -309,6 +472,26 @@ export default function Dashboard({
                                         <span>{pendingTestsCount} CBT Test Due</span>
                                     </Link>
                                 )}
+                                {latestEnrollment && (
+                                    <a
+                                        href={route('admit-card.print', { enrollmentId: latestEnrollment.id })}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-xs"
+                                        title="Print Official PBTE Examination Admit Card / Roll Number Slip"
+                                    >
+                                        <Printer className="h-3.5 w-3.5 text-govt-green-600" />
+                                        <span>Roll No Slip</span>
+                                    </a>
+                                )}
+                                <Link
+                                    href={route('student.apprenticeship.index')}
+                                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-xs"
+                                    title="On-the-Job Training & Apprenticeship Placement"
+                                >
+                                    <Briefcase className="h-3.5 w-3.5 text-blue-600" />
+                                    <span>OJT Portal</span>
+                                </Link>
                                 <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                                     <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                                     <span>Active Trainee</span>
@@ -1429,18 +1612,276 @@ export default function Dashboard({
                                 </div>
                             </div>
 
-                            {latestApplication?.status === 'selected' && (
-                                <div className="p-3.5 rounded-xl bg-white/15 border border-white/20 text-xs flex items-center space-x-3">
-                                    <CheckCircle2 className="h-5 w-5 text-amber-400 shrink-0" />
-                                    <div>
-                                        <p className="font-bold text-sm text-white">Congratulations! You have been selected on merit.</p>
-                                        <p className="text-[11px] text-emerald-100 mt-0.5">
-                                            The admissions office is finalizing batch allocations. Your permanent trainee ID will be activated shortly.
+                            {(latestApplication?.status === 'selected' || latestApplication?.status === 'selected_for_admission' || latestApplication?.entrance_test_attempt?.selection_status === 'selected') && (
+                                <div className="p-4 rounded-2xl bg-white/15 border border-white/25 text-xs space-y-3">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start space-x-3">
+                                            <CheckCircle2 className="h-6 w-6 text-amber-300 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="font-black text-base text-white">Congratulations! You are Selected for Admission.</p>
+                                                <p className="text-xs text-emerald-100 mt-0.5">
+                                                    You have qualified the merit benchmark for <strong>{latestApplication.course?.name}</strong>. Your official admission fee voucher is now unlocked.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => window.print()}
+                                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shrink-0 no-print"
+                                        >
+                                            Print Fee Challan
+                                        </button>
+                                    </div>
+                                    <div className="pt-2 border-t border-white/15 flex items-center justify-between text-[11px] text-emerald-200">
+                                        <span>Fee Status: <strong>{latestApplication.fee_status === 'paid' ? 'PAID / CONFIRMED' : 'UNPAID / CHALLAN ISSUED'}</strong></span>
+                                        <span>Payable at any National Bank (NBP) or College Cashier</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {(latestApplication?.status === 'waiting_list' || latestApplication?.entrance_test_attempt?.selection_status === 'waiting') && (
+                                <div className="p-4 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xs flex items-center space-x-3">
+                                    <Clock className="h-6 w-6 text-amber-300 shrink-0" />
+                                    <div className="space-y-0.5">
+                                        <p className="font-bold text-sm text-white">
+                                            Admission Status: On Merit Waiting List
+                                            {latestApplication.entrance_test_attempt?.merit_rank && (
+                                                <span className="ml-2 font-mono text-amber-300">
+                                                    (Position #{latestApplication.entrance_test_attempt?.merit_rank})
+                                                </span>
+                                            )}
+                                        </p>
+                                        <p className="text-[11px] text-emerald-100">
+                                            You have passed the entrance examination and are currently on the waiting list. If any selected candidates fail to submit their fee within 3 days, your seat will be automatically promoted.
                                         </p>
                                     </div>
                                 </div>
                             )}
                         </div>
+
+                        {/* Phase 25/28: Admission Strategy & Entrance Exam Card */}
+                        {latestApplication && (() => {
+                            const isFcfs = latestApplication.course?.admission_type === 'first_come_first_served' || latestApplication.course?.requires_entrance_test === false;
+                            const attempt = latestApplication.entrance_test_attempt;
+                            const exam = attempt?.entrance_exam;
+
+                            if (isFcfs) {
+                                return (
+                                    <div className="rounded-2xl p-5 bg-blue-50 border border-blue-200 text-blue-950 flex items-start space-x-4">
+                                        <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 font-bold">
+                                            <CheckCircle2 className="h-6 w-6 text-blue-600" />
+                                        </div>
+                                        <div className="space-y-1 flex-1">
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-200/80 text-blue-800 tracking-wider">
+                                                First-Come, First-Served (FCFS) Course
+                                            </span>
+                                            <h3 className="font-bold text-base text-blue-900">
+                                                Direct Admission Intake Track
+                                            </h3>
+                                            <p className="text-xs text-blue-800/90 leading-relaxed">
+                                                This program does not require an entrance examination. Admissions are granted directly upon document verification.
+                                                {latestApplication.status === 'selected_for_admission' ? ' Your admission is approved! Please deposit your fee challan.' : ' Please await document verification by the admissions desk.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Phase 26: Official Entrance Test / Interview Call Letter
+                            if (latestApplication.test_date) {
+                                return (
+                                    <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/40 border-2 border-amber-500/40 shadow-2xl text-white space-y-5 relative overflow-hidden print-card">
+                                        {/* Institute Watermark */}
+                                        <div className="absolute right-4 bottom-2 text-slate-800/20 font-black text-8xl font-serif select-none pointer-events-none">
+                                            GTTI
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500 text-slate-950">
+                                                        OFFICIAL ADMISSION CALL LETTER
+                                                    </span>
+                                                    <span className="text-xs font-mono text-amber-400 font-bold">
+                                                        App #{latestApplication.application_number}
+                                                    </span>
+                                                </div>
+                                                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                                                    Entrance Examination & Interview Call Letter
+                                                </h3>
+                                                <p className="text-xs text-slate-400">
+                                                    Government Technical Training Institute (GTTI) Rahim Yar Khan
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => window.print()}
+                                                className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg shrink-0 no-print"
+                                            >
+                                                <Printer className="h-4 w-4" />
+                                                <span>Print Test Slip</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Schedule Grid */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                                                <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold mb-1">
+                                                    <GraduationCap className="h-4 w-4" />
+                                                    <span>Applied Trade</span>
+                                                </div>
+                                                <p className="font-bold text-white text-sm">{latestApplication.course?.name}</p>
+                                                <span className="text-[10px] text-slate-500 uppercase font-mono">
+                                                    {latestApplication.course?.admission_type === 'merit_based' ? 'Merit-Based' : 'FCFS Track'}
+                                                </span>
+                                            </div>
+
+                                            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                                                <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold mb-1">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>Reporting Date & Time</span>
+                                                </div>
+                                                <p className="font-black text-white text-sm font-mono">{latestApplication.test_date}</p>
+                                                <span className="text-[11px] text-emerald-400 font-bold block">{latestApplication.test_time || '09:00 AM Sharp'}</span>
+                                            </div>
+
+                                            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                                                <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold mb-1">
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span>Examination Venue</span>
+                                                </div>
+                                                <p className="font-bold text-white text-sm">{latestApplication.test_venue || 'GTTI Main Campus'}</p>
+                                                <span className="text-[10px] text-slate-400">Rahim Yar Khan</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Mandatory Clerk Instructions */}
+                                        {latestApplication.clerk_notice && (
+                                            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1">
+                                                <div className="flex items-center space-x-1.5 text-amber-400 font-bold">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <span>Clerk's Mandatory Instructions:</span>
+                                                </div>
+                                                <p className="text-slate-300 leading-relaxed">
+                                                    {latestApplication.clerk_notice}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Live CBT Exam Terminal Link if active */}
+                                        {exam && exam.is_live && attempt?.status !== 'completed' && (
+                                            <div className="pt-2 flex items-center justify-between no-print border-t border-slate-800">
+                                                <div className="flex items-center space-x-2 text-xs text-emerald-400 font-mono">
+                                                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                    <span>CBT Lab Terminal Online</span>
+                                                </div>
+                                                <a
+                                                    href={route('admissions.cbt-exam.take')}
+                                                    className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-govt-green text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg"
+                                                >
+                                                    <span>Enter CBT Exam Terminal</span>
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+
+                            // Merit-based Course without exam scheduled yet
+                            if (!exam) {
+                                return (
+                                    <div className="rounded-2xl p-5 bg-amber-50 border border-amber-200 text-amber-950 flex items-start space-x-4">
+                                        <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                                            <Clock className="h-6 w-6 text-amber-600" />
+                                        </div>
+                                        <div className="space-y-1 flex-1">
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200/80 text-amber-800 tracking-wider">
+                                                Merit-Based Program (Entrance Test Required)
+                                            </span>
+                                            <h3 className="font-bold text-base text-amber-900">
+                                                Admission Subject to Pre-Entry Screening Test
+                                            </h3>
+                                            <p className="text-xs text-amber-800/90 leading-relaxed">
+                                                Admission to <strong>{latestApplication.course?.name}</strong> requires passing the institutional screening examination. Your test date, venue, and reporting time will be updated on this portal once scheduled by the department.
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Exam is scheduled!
+                            const isCompleted = attempt.status === 'completed';
+
+                            return (
+                                <div className={`rounded-3xl p-6 sm:p-7 border shadow-sm space-y-4 ${
+                                    isCompleted
+                                        ? 'bg-white border-emerald-200'
+                                        : exam.is_live
+                                            ? 'bg-gradient-to-r from-emerald-950 via-govt-green-600 to-slate-950 text-white border-emerald-400/40 shadow-xl'
+                                            : 'bg-white border-gray-200'
+                                }`}>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                    isCompleted
+                                                        ? 'bg-emerald-100 text-emerald-800'
+                                                        : exam.is_live
+                                                            ? 'bg-emerald-400 text-slate-950 animate-pulse font-black'
+                                                            : 'bg-gray-100 text-gray-700'
+                                                }`}>
+                                                    {isCompleted
+                                                        ? '✓ TEST COMPLETED'
+                                                        : exam.is_live
+                                                            ? '● TEST IS LIVE IN LAB'
+                                                            : 'TEST SCHEDULED'}
+                                                </span>
+                                                <span className="text-xs font-mono text-gray-400">
+                                                    Passing: {exam.passing_marks}/{exam.total_marks}
+                                                </span>
+                                            </div>
+
+                                            <h3 className={`text-lg font-black tracking-tight ${exam.is_live && !isCompleted ? 'text-white' : 'text-gray-900'}`}>
+                                                Entrance Examination: {exam.course?.name || latestApplication.course?.name}
+                                            </h3>
+                                            <p className={`text-xs ${exam.is_live && !isCompleted ? 'text-emerald-100' : 'text-gray-600'}`}>
+                                                Date: <strong>{new Date(exam.exam_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} at {exam.start_time}</strong> • Venue: <strong>{exam.venue}</strong> • Duration: {exam.duration_minutes} Mins
+                                            </p>
+                                        </div>
+
+                                        <div className="shrink-0">
+                                            {isCompleted ? (
+                                                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">Composite Score</span>
+                                                    <span className="text-xl font-mono font-black text-govt-green">
+                                                        {attempt.composite_merit_score}%
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 block font-mono">
+                                                        ({attempt.entrance_marks_obtained}/{exam.total_marks} Marks)
+                                                    </span>
+                                                </div>
+                                            ) : exam.is_live ? (
+                                                <a
+                                                    href={route('admissions.cbt-exam.login')}
+                                                    className="inline-flex items-center space-x-2 px-6 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-xl shadow-emerald-950/30 animate-bounce"
+                                                >
+                                                    <span>Enter CBT Lab Test</span>
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </a>
+                                            ) : (
+                                                <div className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 font-bold text-xs">
+                                                    <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                                    <span>Pending Instructor Activation</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Application Summary Table */}
                         <Card>

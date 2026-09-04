@@ -31,7 +31,23 @@ class OnlineTest extends Model
         return [
             'duration_minutes' => 'integer',
             'scheduled_at' => 'datetime',
+            'question_pool_size' => 'integer',
+            'practical_marks' => 'integer',
+            'passing_percentage' => 'integer',
+            'is_live' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the effective number of questions a student will be tested on.
+     */
+    public function effectiveQuestionCount(): int
+    {
+        $totalInBank = $this->questions()->count();
+        if ($this->question_pool_size && $this->question_pool_size > 0 && $this->question_pool_size < $totalInBank) {
+            return $this->question_pool_size;
+        }
+        return $totalInBank;
     }
 
     /**

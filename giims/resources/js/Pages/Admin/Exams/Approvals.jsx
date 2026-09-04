@@ -74,7 +74,7 @@ export default function Approvals({ exams = [] }) {
  >
  <Head title="Examination Approvals - GIIMS Admin" />
 
- <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+ <div className="space-y-6">
  {/* METRICS ROW */}
  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
  <div className="p-5 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">

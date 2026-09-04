@@ -88,12 +88,17 @@ class StudentAttendanceController extends Controller
             $centerLng
         );
 
+        $hybridFallbackUsed = false;
         // Allow a slight tolerance if geofence is active
         if ($session->is_geofence_active && $distance > $radiusMeters) {
-            return redirect()->back()->with('error', "Geofence Verification Failed: You are {$distance}m away from {$session->location_name}. Maximum allowed boundary is {$radiusMeters}m. Please ensure you are inside the classroom/lab before checking in.");
+            if ($distance <= 500 && ($this->isCampusSubnet($request->ip()) || ($request->filled('pin') && $request->pin === $session->daily_pin))) {
+                $hybridFallbackUsed = true;
+            } else {
+                return redirect()->back()->with('error', "Geofence Verification Failed: You are {$distance}m away from {$session->location_name}. Maximum allowed boundary is {$radiusMeters}m. Please ensure you are inside the classroom/lab before checking in.");
+            }
         }
 
-        // 4. Mark or update attendance as present with GPS verification
+        // 4. Mark or update attendance as present with GPS or hybrid verification
         ClassAttendance::updateOrCreate(
             [
                 'attendance_session_id' => $session->id,
@@ -101,7 +106,7 @@ class StudentAttendanceController extends Controller
             ],
             [
                 'status' => 'present',
-                'method' => 'gps',
+                'method' => $hybridFallbackUsed ? 'pin_hybrid' : 'gps',
                 'student_lat' => $validated['latitude'],
                 'student_lng' => $validated['longitude'],
                 'distance_meters' => $distance,
@@ -125,7 +130,11 @@ class StudentAttendanceController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', "Attendance marked successfully! GPS Verified at {$session->location_name} ({$distance}m away).");
+        $successMsg = $hybridFallbackUsed
+            ? "Attendance marked successfully via Campus Intranet Fallback! (Classroom GPS drift of {$distance}m accommodated)."
+            : "Attendance marked successfully! GPS Verified at {$session->location_name} ({$distance}m away).";
+
+        return redirect()->back()->with('success', $successMsg);
     }
 
     /**
@@ -178,6 +187,7 @@ class StudentAttendanceController extends Controller
 
         // 3. GPS Geofence boundary verification if coordinates provided
         $distance = null;
+        $hybridFallbackUsed = false;
         if (isset($validated['latitude']) && isset($validated['longitude'])) {
             $centerLat = (float) ($session->latitude ?? 28.4212);
             $centerLng = (float) ($session->longitude ?? 70.3023);
@@ -191,7 +201,12 @@ class StudentAttendanceController extends Controller
             );
 
             if ($session->is_geofence_active && $distance > $radius) {
-                return redirect()->back()->with('error', "Location Verification Failed: You are {$distance}m away from {$session->location_name}. Maximum allowed boundary is {$radius}m. You must be inside the classroom to check in.");
+                // If student is on campus intranet subnet and within indoor drift tolerance (<= 500m)
+                if ($distance <= 500 && $this->isCampusSubnet($request->ip())) {
+                    $hybridFallbackUsed = true;
+                } else {
+                    return redirect()->back()->with('error', "Location Verification Failed: You are {$distance}m away from {$session->location_name}. Maximum allowed boundary is {$radius}m. You must be inside the classroom to check in.");
+                }
             }
         }
 
@@ -213,7 +228,7 @@ class StudentAttendanceController extends Controller
             ],
             [
                 'status' => 'present',
-                'method' => $distance !== null ? 'pin_gps' : 'pin',
+                'method' => $hybridFallbackUsed ? 'pin_hybrid' : ($distance !== null ? 'pin_gps' : 'pin'),
                 'student_lat' => $validated['latitude'] ?? null,
                 'student_lng' => $validated['longitude'] ?? null,
                 'distance_meters' => $distance,
@@ -238,7 +253,34 @@ class StudentAttendanceController extends Controller
             ]);
         }
 
-        $locNote = $distance !== null ? " ({$distance}m inside {$session->location_name})" : "";
-        return redirect()->back()->with('success', "✓ Class PIN verified{$locNote}! Your check-in is recorded and awaiting instructor confirmation.");
+        if ($hybridFallbackUsed) {
+            $msg = "✓ Class PIN verified via Campus Intranet fallback! (Indoor GPS drift of {$distance}m accommodated). Recorded and awaiting instructor confirmation.";
+        } else {
+            $locNote = $distance !== null ? " ({$distance}m inside {$session->location_name})" : "";
+            $msg = "✓ Class PIN verified{$locNote}! Your check-in is recorded and awaiting instructor confirmation.";
+        }
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Check if client IP is from the local GTTI campus intranet subnet or loopback.
+     */
+    protected function isCampusSubnet(?string $ip): bool
+    {
+        if (empty($ip)) {
+            return false;
+        }
+
+        if (in_array($ip, ['127.0.0.1', '::1', 'localhost'])) {
+            return true;
+        }
+
+        // Built-in PHP check: returns false if IP is in RFC 1918 private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false) {
+            return true;
+        }
+
+        return false;
     }
 }

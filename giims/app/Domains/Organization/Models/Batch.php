@@ -54,6 +54,14 @@ class Batch extends Model
     }
 
     /**
+     * Get the day-by-day curriculum roadmap lessons for this batch.
+     */
+    public function dailyLessons(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Academic\Models\DailyLesson::class)->orderBy('day_number', 'asc');
+    }
+
+    /**
      * Get the teachers assigned to this batch.
      */
     public function teachers(): BelongsToMany

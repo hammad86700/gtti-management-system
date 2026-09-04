@@ -61,22 +61,44 @@ class MeritController extends Controller
             'status' => 'published',
         ]);
 
+        $course = Course::findOrFail($validated['course_id']);
+
         $applications = Application::where('course_id', $validated['course_id'])
             ->whereIn('status', ['verified', 'submitted', 'under_review'])
+            ->with(['entranceTestAttempt.entranceExam'])
             ->get();
 
-        foreach ($applications as $app) {
-            $obtained = $app->obtained_marks ?? rand(650, 1025);
-            $total = $app->total_marks ?? 1100;
-            $meritScore = round(($obtained / $total) * 100, 2);
+        $matricWeightage = $course->matric_weightage ?? 50;
+        $testWeightage = $course->test_weightage ?? 50;
 
+        foreach ($applications as $app) {
+            $obtained = $app->obtained_marks ?? 700;
+            $total = $app->total_marks ?? 1100;
             $app->obtained_marks = $obtained;
             $app->total_marks = $total;
-            $app->merit_score = $meritScore;
+
+            if ($course->isFcfs()) {
+                // FCFS: simple matric percentage
+                $app->merit_score = $total > 0 ? round(($obtained / $total) * 100, 2) : 0;
+            } else {
+                // Merit-based: use calculated entrance composite merit score if available
+                $attempt = $app->entranceTestAttempt;
+                if ($attempt && $attempt->composite_merit_score !== null) {
+                    $app->merit_score = $attempt->composite_merit_score;
+                } else {
+                    // Fallback to matric percentage if no entrance exam taken
+                    $app->merit_score = $total > 0 ? round(($obtained / $total) * 100, 2) : 0;
+                }
+            }
             $app->save();
         }
 
-        $sorted = $applications->sortByDesc('merit_score')->values();
+        // Sorting: FCFS by earliest created_at, Merit-based by composite merit_score DESC
+        if ($course->isFcfs()) {
+            $sorted = $applications->sortBy('created_at')->values();
+        } else {
+            $sorted = $applications->sortByDesc('merit_score')->values();
+        }
 
         foreach ($sorted as $index => $app) {
             if ($index < 30) {
@@ -92,7 +114,7 @@ class MeritController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', "Merit list '{$meritList->title}' successfully compiled. {$sorted->count()} applicant(s) ranked and processed.");
+        return redirect()->back()->with('success', "Merit list '{$meritList->title}' successfully compiled using {$course->admission_type} strategy. {$sorted->count()} applicant(s) ranked and processed.");
     }
 
     /**

@@ -108,7 +108,7 @@ export default function Index({ placements = [], stats = {} }) {
  >
  <Head title="Alumni Placements - GIIMS Admin" />
 
- <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+ <div className="space-y-6">
  {/* MINI STAT CARDS */}
  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
  <div className="p-5 rounded-xl bg-white border border-gray-200 shadow-sm">

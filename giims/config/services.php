@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pluggable Telecom SMS Gateway
+    |--------------------------------------------------------------------------
+    */
+    'sms' => [
+        'driver'    => env('SMS_DRIVER', 'log'), // 'log' or 'generic_http'
+        'api_url'   => env('SMS_API_URL', 'https://api.sms-gateway.pk/v1/send'),
+        'api_key'   => env('SMS_API_KEY', ''),
+        'sender_id' => env('SMS_SENDER_ID', 'GTTI-TEVTA'),
+    ],
+
 ];

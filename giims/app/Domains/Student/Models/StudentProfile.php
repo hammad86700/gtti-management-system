@@ -32,6 +32,8 @@ class StudentProfile extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'struck_off_at' => 'datetime',
+            'struck_off_until' => 'datetime',
         ];
     }
 
@@ -145,5 +147,58 @@ class StudentProfile extends Model
     public function testAttempts(): HasMany
     {
         return $this->hasMany(\App\Domains\Examination\Models\TestAttempt::class);
+    }
+
+    /**
+     * Get all status and termination requests for this student.
+     */
+    public function statusRequests(): HasMany
+    {
+        return $this->hasMany(StudentStatusRequest::class);
+    }
+
+    /**
+     * Determine if this student is currently permanently terminated.
+     */
+    public function isTerminated(): bool
+    {
+        return $this->status === 'terminated';
+    }
+
+    /**
+     * Determine if this student is currently temporarily struck off.
+     */
+    public function isStruckOff(): bool
+    {
+        if ($this->status !== 'struck_off') {
+            return false;
+        }
+
+        // If suspension has expired, student is no longer actively struck off
+        if ($this->struck_off_until && now()->greaterThan($this->struck_off_until)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine if student has any active sanction (struck-off or terminated).
+     */
+    public function isSanctioned(): bool
+    {
+        return $this->isTerminated() || $this->isStruckOff();
+    }
+
+    /**
+     * Calculate remaining days in temporary suspension.
+     */
+    public function remainingSuspensionDays(): int
+    {
+        if (!$this->isStruckOff() || !$this->struck_off_until) {
+            return 0;
+        }
+
+        return max(0, (int) ceil(now()->diffInSeconds($this->struck_off_until, false) / 86400));
     }
 }

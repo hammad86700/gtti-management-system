@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'student.active' => \App\Http\Middleware\EnsureStudentActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

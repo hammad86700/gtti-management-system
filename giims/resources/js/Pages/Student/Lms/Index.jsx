@@ -100,6 +100,14 @@ export default function Index({ enrollment, lessons = [], assignments = [] }) {
                     </p>
  </div>
 
+ <Link
+ href={route('student.curriculum.journey')}
+ className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition flex items-center space-x-1.5 shadow-md shrink-0"
+ >
+ <Calendar className="h-3.5 w-3.5 text-slate-950" />
+ <span>Interactive Day Roadmap</span>
+ </Link>
+
  {/* Tab Switcher */}
  <div className="flex items-center p-1 bg-govt-cream-300/80 rounded-2xl border border-gray-200 shrink-0">
  <button

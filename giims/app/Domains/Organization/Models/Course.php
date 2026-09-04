@@ -29,7 +29,54 @@ class Course extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_published' => 'boolean',
+            'requires_entrance_test' => 'boolean',
+            'duration_value' => 'integer',
+            'total_academic_days' => 'integer',
+            'matric_weightage' => 'integer',
+            'test_weightage' => 'integer',
+            'interview_weightage' => 'integer',
+            'interview_max_marks' => 'integer',
         ];
+    }
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = ['formatted_duration'];
+
+    /**
+     * Get the human-readable formatted duration string.
+     */
+    public function getFormattedDurationAttribute(): string
+    {
+        $val = $this->duration_value ?: 6;
+        $type = $this->duration_type ?: 'months';
+
+        if ($type === 'months') {
+            if ($val == 3) return '3 Months Short Course';
+            if ($val == 6) return '6 Months CBT&A';
+            if ($val == 12) return '1 Year Diploma';
+            if ($val == 24) return '2-Year G-II Diploma';
+            if ($val == 36) return '3-Year DAE Diploma';
+            return "{$val} Months Course";
+        }
+
+        if ($type === 'weeks') {
+            return "{$val} Weeks Training";
+        }
+
+        if ($type === 'days') {
+            return "{$val} Days Workshop";
+        }
+
+        if ($type === 'hours') {
+            return "{$val} Hours Fast-Track";
+        }
+
+        return "{$val} " . ucfirst($type);
     }
 
     /**
@@ -54,5 +101,53 @@ class Course extends Model
     public function subjects(): HasMany
     {
         return $this->hasMany(Subject::class);
+    }
+
+    /**
+     * Get the enrollments for this course.
+     */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Student\Models\Enrollment::class);
+    }
+
+    /**
+     * Get entrance exams for this course.
+     */
+    public function entranceExams(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Admissions\Models\AdmissionEntranceExam::class);
+    }
+
+    /**
+     * Get admission applications for this course.
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Admissions\Models\Application::class);
+    }
+
+    /**
+     * Get interview questions for this course.
+     */
+    public function interviewQuestions(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Admissions\Models\InterviewQuestion::class);
+    }
+
+    /**
+     * Check if course uses merit-based admission.
+     */
+    public function isMeritBased(): bool
+    {
+        return ($this->admission_type ?? 'merit_based') === 'merit_based';
+    }
+
+    /**
+     * Check if course uses first-come-first-served admission.
+     */
+    public function isFcfs(): bool
+    {
+        return ($this->admission_type ?? 'merit_based') === 'first_come_first_served';
     }
 }

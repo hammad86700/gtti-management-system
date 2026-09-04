@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
  Award,
  CheckCircle2,
@@ -16,7 +16,8 @@ import {
  Filter,
  Inbox,
  Save,
- FileCheck
+ FileCheck,
+ CreditCard
 } from 'lucide-react';
 
 export default function Index({ clearances = [] }) {
@@ -102,15 +103,24 @@ export default function Index({ clearances = [] }) {
  </div>
  </div>
 
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-govt-gold-50 text-amber-600 border border-govt-gold-200">
- <span>{pendingCount} Audits Pending</span>
- </span>
+                    <div className="flex items-center space-x-3">
+                        <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-govt-gold-50 text-amber-600 border border-govt-gold-200">
+                            <span>{pendingCount} Audits Pending</span>
+                        </span>
+                        <Link
+                            href={route('clerk.fees.reconciliation')}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-govt-green-600 text-white hover:bg-govt-green-700 transition shadow-sm"
+                        >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>Bank Fee Desk</span>
+                        </Link>
+                    </div>
  </div>
  }
  >
  <Head title="Clearance & Certificates - GIIMS Admin" />
 
- <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+ <div className="space-y-6">
  {/* METRICS ROW */}
  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
  <div className="p-5 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">

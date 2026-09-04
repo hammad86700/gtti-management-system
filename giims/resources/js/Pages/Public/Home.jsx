@@ -28,10 +28,11 @@ import {
  ShieldCheck
 } from 'lucide-react';
 
-export default function Home({ activeCampaign, departments = [], canLogin, canRegister }) {
+export default function Home({ activeCampaign, departments = [], publishedCourses = [], canLogin, canRegister }) {
  const { auth, site_settings: siteSettings = {} } = usePage().props;
  const user = auth?.user;
  const [selectedDept, setSelectedDept] = useState('all');
+ const [selectedCategory, setSelectedCategory] = useState('all');
  const [searchQuery, setSearchQuery] = useState('');
 
  // Department icon mapper
@@ -358,7 +359,7 @@ export default function Home({ activeCampaign, departments = [], canLogin, canRe
  </div>
 
  <div className="p-5 bg-white rounded-xl border border-gray-200 shadow-sm space-y-2">
- <span className="h-8 w-8 rounded bg-[#00401A] text-white flex items-center justify-center font-black text-sm">
+<span className="h-8 w-8 rounded bg-[#00401A] text-white flex items-center justify-center font-black text-sm">
  4
  </span>
  <h3 className="font-extrabold text-sm text-gray-900">Merit List & Enrollment</h3>
@@ -382,6 +383,124 @@ export default function Home({ activeCampaign, departments = [], canLogin, canRe
  <h2 className="text-2xl font-black text-gray-900 tracking-tight">
  Accredited Technical Programs & Trades
  </h2>
+        {/* Live Published Courses & Flexible Curriculum Roadmap Showcase */}
+        {publishedCourses && publishedCourses.length > 0 && (
+            <div className="space-y-6 pb-6 border-b-2 border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div className="flex items-center space-x-2">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                                Live Catalog Sync
+                            </span>
+                            <span className="text-xs text-emerald-800 font-bold flex items-center space-x-1">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Clerk Real-Time Synchronized</span>
+                            </span>
+                        </div>
+                        <h3 className="text-lg font-black text-gray-900 mt-1">
+                            Published Short Courses & Diplomas ({publishedCourses.length})
+                        </h3>
+                    </div>
+
+                    {/* Category Filter Pills */}
+                    <div className="flex flex-wrap gap-1.5">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedCategory('all')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                                selectedCategory === 'all'
+                                    ? 'bg-[#00401A] text-white shadow-sm'
+                                    : 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
+                            }`}
+                        >
+                            All Disciplines
+                        </button>
+                        {Array.from(new Set(publishedCourses.map((c) => c.category || 'General Vocational'))).map((cat) => (
+                            <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                                    selectedCategory === cat
+                                        ? 'bg-[#00401A] text-white shadow-sm'
+                                        : 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Published Course Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {publishedCourses
+                        .filter((c) => {
+                            const matchesCat = selectedCategory === 'all' || (c.category || 'General Vocational') === selectedCategory;
+                            const matchesSearch = !searchQuery ||
+                                c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()));
+                            return matchesCat && matchesSearch;
+                        })
+                        .map((course) => (
+                            <div
+                                key={course.id}
+                                className="rounded-2xl bg-white border border-gray-200 hover:border-[#00401A] p-5 shadow-xs hover:shadow-md transition flex flex-col justify-between space-y-4"
+                            >
+                                <div className="space-y-2.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                            {course.category || 'General Vocational'}
+                                        </span>
+                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
+                                        </span>
+                                    </div>
+
+                                    <h4 className="text-base font-black text-gray-900 leading-snug">
+                                        {course.name}
+                                    </h4>
+
+                                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+                                        {course.overview_description || `Standard institutional curriculum with ${course.total_academic_days || 60} academic days of practical workshop sessions.`}
+                                    </p>
+
+                                    <div className="pt-2 flex flex-wrap gap-2 text-[11px] text-gray-500 font-mono">
+                                        <span>• {course.total_academic_days || 60} Days Roadmap</span>
+                                        <span>• Eligibility: <strong>{course.entry_level}</strong></span>
+                                    </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                                    {course.syllabus_document_path ? (
+                                        <a
+                                            href={`/storage/${course.syllabus_document_path}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center space-x-1 font-bold text-amber-700 hover:text-amber-800"
+                                        >
+                                            <FileText className="h-3.5 w-3.5" />
+                                            <span>Syllabus (PDF)</span>
+                                        </a>
+                                    ) : (
+                                        <span className="text-gray-400 font-medium">TEVTA Certified</span>
+                                    )}
+
+                                    <Link
+                                        href={canRegister ? route('register') : '#'}
+                                        className="inline-flex items-center space-x-1 font-extrabold text-[#00401A] hover:underline"
+                                    >
+                                        <span>Apply Now</span>
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                </div>
+            </div>
+        )}
+
  <p className="text-xs text-gray-600 mt-0.5">
  Government approved vocational qualifications with morning and evening instructional shifts
  </p>

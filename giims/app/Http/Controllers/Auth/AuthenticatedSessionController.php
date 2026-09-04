@@ -33,7 +33,29 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = auth()->user();
+
+        if ($user && $user->roles()->whereIn('slug', ['super-admin', 'principal', 'administrator', 'admin'])->exists()) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($user && $user->roles()->whereIn('slug', ['clerk', 'admission-clerk'])->exists()) {
+            return redirect()->route('clerk.dashboard');
+        }
+
+        if ($user && $user->roles()->whereIn('slug', ['teacher', 'instructor', 'trade-incharge'])->exists()) {
+            return redirect()->route('teacher.dashboard');
+        }
+
+        if ($user && $user->roles()->whereIn('slug', ['interviewer'])->exists()) {
+            return redirect()->route('interviewer.viva.index');
+        }
+
+        if ($user && $user->roles()->whereIn('slug', ['security-officer', 'security'])->exists()) {
+            return redirect()->route('security.gate.index');
+        }
+
+        return redirect()->route('dashboard');
     }
 
     /**

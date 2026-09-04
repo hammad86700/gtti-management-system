@@ -201,7 +201,7 @@ export default function Index({
         >
             <Head title="Store Inventory - GIIMS Admin" />
 
-            <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            <div className="space-y-6">
                 {/* METRICS ROW */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm">

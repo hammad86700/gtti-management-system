@@ -103,7 +103,7 @@ export default function Index({ counts = {} }) {
  >
  <Head title="Reports Hub - GIIMS Admin" />
 
- <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+ <div className="space-y-6">
  {/* HERO BANNER */}
  <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-govt-green via-govt-green-500 to-indigo-950/70 border border-gray-200 p-6 sm:p-8 shadow-govt-lg">
  <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

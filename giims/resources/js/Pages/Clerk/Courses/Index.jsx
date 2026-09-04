@@ -1,0 +1,662 @@
+import { useState } from 'react';
+import ClerkLayout from '@/Layouts/ClerkLayout';
+import { Head, useForm, router } from '@inertiajs/react';
+import {
+    BookOpen,
+    Plus,
+    Edit2,
+    Trash2,
+    CheckCircle2,
+    Layers,
+    Clock,
+    Users,
+    AlertCircle,
+    Building2,
+    Globe,
+    FileText,
+    Calendar,
+    Sparkles,
+    Upload
+} from 'lucide-react';
+import Badge from '@/Components/UI/Badge';
+
+export default function Index({ courses = [], trades = [], categories = [] }) {
+    const [createModal, setCreateModal] = useState(false);
+    const [editModal, setEditModal] = useState(false);
+    const [editingCourse, setEditingCourse] = useState(null);
+
+    // Form for creating course
+    const createForm = useForm({
+        trade_id: trades[0]?.id || '',
+        name: '',
+        category: 'Information Technology',
+        duration_type: 'months',
+        duration_value: 6,
+        total_academic_days: 60,
+        overview_description: '',
+        entry_level: 'Matric (Science/Arts)',
+        admission_type: 'merit_based',
+        matric_weightage: 50,
+        test_weightage: 40,
+        interview_weightage: 10,
+        interview_max_marks: 10,
+        interview_venue: 'Lab 3 / Interview Room',
+        is_published: true,
+        is_active: true,
+        syllabus_document: null,
+    });
+
+    // Form for editing course
+    const editForm = useForm({
+        trade_id: '',
+        name: '',
+        category: '',
+        duration_type: 'months',
+        duration_value: 6,
+        total_academic_days: 60,
+        overview_description: '',
+        entry_level: '',
+        admission_type: 'merit_based',
+        matric_weightage: 50,
+        test_weightage: 40,
+        interview_weightage: 10,
+        interview_max_marks: 10,
+        interview_venue: 'Lab 3 / Interview Room',
+        is_published: true,
+        is_active: true,
+        syllabus_document: null,
+    });
+
+    const handleCreate = (e) => {
+        e.preventDefault();
+        createForm.post(route('clerk.courses.store'), {
+            forceFormData: true,
+            onSuccess: () => {
+                setCreateModal(false);
+                createForm.reset();
+            },
+        });
+    };
+
+    const handleOpenEdit = (course) => {
+        setEditingCourse(course);
+        editForm.setData({
+            trade_id: course.trade_id,
+            name: course.name,
+            category: course.category || 'General Vocational',
+            duration_type: course.duration_type || 'months',
+            duration_value: course.duration_value ?? 6,
+            total_academic_days: course.total_academic_days ?? 60,
+            overview_description: course.overview_description || '',
+            entry_level: course.entry_level,
+            admission_type: course.admission_type || 'merit_based',
+            matric_weightage: course.matric_weightage ?? 50,
+            test_weightage: course.test_weightage ?? 40,
+            interview_weightage: course.interview_weightage ?? 10,
+            interview_max_marks: course.interview_max_marks ?? 10,
+            interview_venue: course.interview_venue || 'Lab 3 / Interview Room',
+            is_published: Boolean(course.is_published ?? true),
+            is_active: Boolean(course.is_active),
+            syllabus_document: null,
+        });
+        setEditModal(true);
+    };
+
+    const handleUpdate = (e) => {
+        e.preventDefault();
+        if (!editingCourse) return;
+
+        editForm.post(route('clerk.courses.update', editingCourse.id), {
+            forceFormData: true,
+            _method: 'patch',
+            onSuccess: () => {
+                setEditModal(false);
+                setEditingCourse(null);
+            },
+        });
+    };
+
+    const handleDelete = (course) => {
+        if (!confirm(`Are you sure you want to archive course '${course.name}'?`)) return;
+        router.delete(route('clerk.courses.destroy', course.id));
+    };
+
+    const defaultCategories = [
+        'Information Technology',
+        'Mechanical & Manufacturing',
+        'Electrical & Electronics',
+        'Civil & Construction',
+        'Vocational Short Course',
+        'Hospitality & Culinary',
+    ];
+
+    const allCategories = Array.from(new Set([...defaultCategories, ...categories]));
+
+    return (
+        <ClerkLayout
+            header={
+                <div className="flex items-center space-x-2 text-xs font-medium">
+                    <span className="font-bold text-[#C1902F]">Clerk Desk</span>
+                    <span>/</span>
+                    <span className="text-white font-semibold">Courses & Trades Catalog</span>
+                </div>
+            }
+        >
+            <Head title="Course Catalog & Lifecycle - Admission Clerk Desk" />
+
+            <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+                {/* Header Action Bar */}
+                <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                            <BookOpen className="h-5 w-5 text-amber-400" />
+                            <h1 className="text-xl font-black text-white">Course Lifecycle & Intake Catalog</h1>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            Configure flexible course durations (3-Month, 6-Month, 1-Year), dynamic categories, public site publishing, and master syllabus blueprints.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setCreateModal(true)}
+                        className="inline-flex items-center space-x-2 px-5 py-3 rounded-2xl bg-[#C1902F] hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg shrink-0"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Add New Course</span>
+                    </button>
+                </div>
+
+                {/* Courses Grid Table */}
+                <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+                    <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+                        <h2 className="text-sm font-bold text-white">Active Vocational Curricula ({courses.length})</h2>
+                        <span className="text-xs text-slate-500 font-mono">Institutional Roster</span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-950 text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th className="py-3 px-4">Course & Category</th>
+                                    <th className="py-3 px-4">Duration & Days</th>
+                                    <th className="py-3 px-4">Parent Trade</th>
+                                    <th className="py-3 px-4">Admission Track</th>
+                                    <th className="py-3 px-3 text-center">Public Status</th>
+                                    <th className="py-3 px-4 text-center">Applicants</th>
+                                    <th className="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800 text-slate-300">
+                                {courses.map((course) => (
+                                    <tr key={course.id} className="hover:bg-slate-800/50 transition">
+                                        <td className="py-3.5 px-4">
+                                            <div className="font-bold text-white text-sm">{course.name}</div>
+                                            <div className="flex items-center space-x-2 mt-1">
+                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">
+                                                    {course.category || 'General Vocational'}
+                                                </span>
+                                                {course.syllabus_document_path && (
+                                                    <span className="text-[10px] text-amber-400 flex items-center space-x-0.5">
+                                                        <FileText className="h-3 w-3" />
+                                                        <span>Syllabus Uploaded</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-4">
+                                            <span className="inline-flex items-center space-x-1 font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-xl text-[11px]">
+                                                <Clock className="h-3.5 w-3.5" />
+                                                <span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 block mt-1 font-mono">
+                                                {course.total_academic_days || 60} Academic Days
+                                            </span>
+                                        </td>
+                                        <td className="py-3.5 px-4">
+                                            <div className="font-semibold text-slate-200">{course.trade?.name || '—'}</div>
+                                            <div className="text-[10px] text-slate-400 font-mono">
+                                                {course.trade?.program?.department?.name || 'Vocational'}
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-4">
+                                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                course.admission_type === 'first_come_first_served'
+                                                    ? 'bg-blue-900/60 text-blue-300 border border-blue-700'
+                                                    : 'bg-amber-900/60 text-amber-300 border border-amber-700'
+                                            }`}>
+                                                {course.admission_type === 'first_come_first_served' ? 'FCFS Direct' : 'Merit-Based'}
+                                            </span>
+                                        </td>
+                                        <td className="py-3.5 px-3 text-center">
+                                            {course.is_published ? (
+                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                                    <Globe className="h-3 w-3" />
+                                                    <span>Live Public</span>
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                                    <span>Draft / Hidden</span>
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center">
+                                            <span className="font-mono font-black text-white text-sm">
+                                                {course.total_applicants ?? 0}
+                                            </span>
+                                            <div className="text-[10px] text-slate-400">
+                                                {course.verified_applicants ?? 0} verified
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-right space-x-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenEdit(course)}
+                                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 transition"
+                                                title="Edit Course Parameters"
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(course)}
+                                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-rose-400 transition"
+                                                title="Archive Course"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {/* Create Course Modal */}
+            {createModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                    <div className="w-full max-w-xl rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-5 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-lg font-black text-white">Add New Vocational Course</h3>
+                                <p className="text-xs text-slate-400">Define curriculum, flexible duration, and category</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setCreateModal(false)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreate} className="space-y-4 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Parent Trade *</label>
+                                    <select
+                                        value={createForm.data.trade_id}
+                                        onChange={(e) => createForm.setData('trade_id', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold text-xs"
+                                        required
+                                    >
+                                        {trades.map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name} ({t.program?.name})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Category / Discipline *</label>
+                                    <input
+                                        type="text"
+                                        list="category-suggestions"
+                                        required
+                                        placeholder="e.g. Information Technology"
+                                        value={createForm.data.category}
+                                        onChange={(e) => createForm.setData('category', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                    />
+                                    <datalist id="category-suggestions">
+                                        {allCategories.map((cat, i) => (
+                                            <option key={i} value={cat} />
+                                        ))}
+                                    </datalist>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Course Title *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Advanced Python & Artificial Intelligence"
+                                    value={createForm.data.name}
+                                    onChange={(e) => createForm.setData('name', e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                />
+                            </div>
+
+                            {/* Flexible Duration Configuration */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                                <span className="font-bold text-amber-400 block uppercase tracking-wider text-[10px]">
+                                    Flexible Course Duration & Roadmap Parameters
+                                </span>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Duration Unit</label>
+                                        <select
+                                            value={createForm.data.duration_type}
+                                            onChange={(e) => createForm.setData('duration_type', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs"
+                                        >
+                                            <option value="months">Months</option>
+                                            <option value="weeks">Weeks</option>
+                                            <option value="days">Days</option>
+                                            <option value="hours">Hours</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Duration Value</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="365"
+                                            value={createForm.data.duration_value}
+                                            onChange={(e) => createForm.setData('duration_value', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Total Academic Days</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="500"
+                                            value={createForm.data.total_academic_days}
+                                            onChange={(e) => createForm.setData('total_academic_days', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Course Overview / Description</label>
+                                <textarea
+                                    rows="3"
+                                    placeholder="Summarize course aims, learning outcomes, and technical skills taught..."
+                                    value={createForm.data.overview_description}
+                                    onChange={(e) => createForm.setData('overview_description', e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Entry Eligibility *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. Matric (Science / Arts)"
+                                        value={createForm.data.entry_level}
+                                        onChange={(e) => createForm.setData('entry_level', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Strategy *</label>
+                                    <select
+                                        value={createForm.data.admission_type}
+                                        onChange={(e) => createForm.setData('admission_type', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-bold"
+                                    >
+                                        <option value="merit_based">Merit-Based (Entrance Test + Interview)</option>
+                                        <option value="first_come_first_served">First-Come-First-Served (FCFS Direct)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Master Syllabus Upload */}
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Master Syllabus Document (PDF / DOC)</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx"
+                                    onChange={(e) => createForm.setData('syllabus_document', e.target.files[0])}
+                                    className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700"
+                                />
+                            </div>
+
+                            {/* Live Public Sync Toggle */}
+                            <div className="flex items-center space-x-2 pt-1">
+                                <input
+                                    type="checkbox"
+                                    id="create_is_published"
+                                    checked={createForm.data.is_published}
+                                    onChange={(e) => createForm.setData('is_published', e.target.checked)}
+                                    className="h-4 w-4 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-amber-500"
+                                />
+                                <label htmlFor="create_is_published" className="font-bold text-slate-300">
+                                    Publish instantly to live public website catalog
+                                </label>
+                            </div>
+
+                            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setCreateModal(false)}
+                                    className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={createForm.processing}
+                                    className="py-2.5 px-6 rounded-xl bg-[#C1902F] hover:bg-amber-400 text-slate-950 font-black transition disabled:opacity-50"
+                                >
+                                    {createForm.processing ? 'Saving...' : 'Create Course'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Course Modal */}
+            {editModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                    <div className="w-full max-w-xl rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-5 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-lg font-black text-white">Edit Course Lifecycle</h3>
+                                <p className="text-xs text-slate-400">Update curriculum parameters and catalog settings</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditModal(false)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdate} className="space-y-4 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Parent Trade *</label>
+                                    <select
+                                        value={editForm.data.trade_id}
+                                        onChange={(e) => editForm.setData('trade_id', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold text-xs"
+                                        required
+                                    >
+                                        {trades.map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name} ({t.program?.name})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Category / Discipline *</label>
+                                    <input
+                                        type="text"
+                                        list="edit-category-suggestions"
+                                        required
+                                        value={editForm.data.category}
+                                        onChange={(e) => editForm.setData('category', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                    />
+                                    <datalist id="edit-category-suggestions">
+                                        {allCategories.map((cat, i) => (
+                                            <option key={i} value={cat} />
+                                        ))}
+                                    </datalist>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Course Title *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editForm.data.name}
+                                    onChange={(e) => editForm.setData('name', e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                />
+                            </div>
+
+                            {/* Flexible Duration Configuration */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                                <span className="font-bold text-amber-400 block uppercase tracking-wider text-[10px]">
+                                    Flexible Course Duration & Roadmap Parameters
+                                </span>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Duration Unit</label>
+                                        <select
+                                            value={editForm.data.duration_type}
+                                            onChange={(e) => editForm.setData('duration_type', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs"
+                                        >
+                                            <option value="months">Months</option>
+                                            <option value="weeks">Weeks</option>
+                                            <option value="days">Days</option>
+                                            <option value="hours">Hours</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Duration Value</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="365"
+                                            value={editForm.data.duration_value}
+                                            onChange={(e) => editForm.setData('duration_value', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-slate-400 mb-1">Total Academic Days</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="500"
+                                            value={editForm.data.total_academic_days}
+                                            onChange={(e) => editForm.setData('total_academic_days', e.target.value)}
+                                            className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Course Overview / Description</label>
+                                <textarea
+                                    rows="3"
+                                    value={editForm.data.overview_description}
+                                    onChange={(e) => editForm.setData('overview_description', e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Entry Requirement / Eligibility *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editForm.data.entry_level}
+                                        onChange={(e) => editForm.setData('entry_level', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Strategy *</label>
+                                    <select
+                                        value={editForm.data.admission_type}
+                                        onChange={(e) => editForm.setData('admission_type', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-bold"
+                                    >
+                                        <option value="merit_based">Merit-Based (Entrance Test + Interview)</option>
+                                        <option value="first_come_first_served">First-Come-First-Served (FCFS Direct)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Master Syllabus Upload */}
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1">Update Syllabus Document (Optional)</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx"
+                                    onChange={(e) => editForm.setData('syllabus_document', e.target.files[0])}
+                                    className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700"
+                                />
+                            </div>
+
+                            {/* Live Public Sync Toggle */}
+                            <div className="flex items-center space-x-2 pt-1">
+                                <input
+                                    type="checkbox"
+                                    id="edit_is_published"
+                                    checked={editForm.data.is_published}
+                                    onChange={(e) => editForm.setData('is_published', e.target.checked)}
+                                    className="h-4 w-4 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-amber-500"
+                                />
+                                <label htmlFor="edit_is_published" className="font-bold text-slate-300">
+                                    Published on live public website catalog
+                                </label>
+                            </div>
+
+                            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditModal(false)}
+                                    className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editForm.processing}
+                                    className="py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black transition disabled:opacity-50"
+                                >
+                                    {editForm.processing ? 'Updating...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </ClerkLayout>
+    );
+}

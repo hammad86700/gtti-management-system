@@ -24,17 +24,27 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        // Redirect administrative staff to Admin Command Center
-        if ($user->roles()->whereIn('slug', ['super-admin', 'principal', 'administrator', 'clerk', 'admission-clerk'])->exists()) {
+        // 1. Redirect administrative staff (Super Admin, Principal, Admin) to Admin Command Center
+        if ($user->roles()->whereIn('slug', ['super-admin', 'principal', 'administrator', 'admin'])->exists()) {
             return redirect()->route('admin.dashboard');
         }
 
-        // Redirect faculty / instructors to Teacher Dashboard
+        // 2. Redirect clerks to Clerk Admission Portal
+        if ($user->roles()->whereIn('slug', ['clerk', 'admission-clerk'])->exists()) {
+            return redirect()->route('clerk.dashboard');
+        }
+
+        // 3. Redirect faculty / instructors to Teacher Dashboard
         if ($user->roles()->whereIn('slug', ['teacher', 'instructor', 'trade-incharge'])->exists()) {
             return redirect()->route('teacher.dashboard');
         }
 
-        // Redirect security personnel to Gate Portal
+        // 4. Redirect interviewers to Viva Interview Desk
+        if ($user->roles()->whereIn('slug', ['interviewer'])->exists()) {
+            return redirect()->route('interviewer.viva.index');
+        }
+
+        // 5. Redirect security personnel to Gate Portal
         if ($user->roles()->whereIn('slug', ['security-officer', 'security'])->exists()) {
             return redirect()->route('security.gate.index');
         }
@@ -43,11 +53,94 @@ class DashboardController extends Controller
             'studentProfile.applications.course.trade.program.department',
             'studentProfile.applications.admissionCampaign',
             'studentProfile.applications.documents',
+            'studentProfile.applications.entranceTestAttempt.entranceExam',
             'studentProfile.enrollments.course.trade.program.department',
             'studentProfile.enrollments.batch.teachers',
         ]);
 
         $profile = $user->studentProfile;
+        $sanction = null;
+
+        if ($profile) {
+            // Check for temporary struck-off automatic expiry
+            if ($profile->status === 'struck_off') {
+                if ($profile->struck_off_until && now()->greaterThan($profile->struck_off_until)) {
+                    $profile->update([
+                        'status' => 'active',
+                        'struck_off_at' => null,
+                        'struck_off_until' => null,
+                        'struck_off_days' => null,
+                        'termination_reason' => null,
+                    ]);
+
+                    $profile->enrollments()
+                        ->where('status', 'suspended')
+                        ->update(['status' => 'active']);
+                } else {
+                    $sanction = [
+                        'status' => 'struck_off',
+                        'type' => 'struck_off',
+                        'struck_off_days' => $profile->struck_off_days,
+                        'struck_off_at' => $profile->struck_off_at?->format('d M Y, h:i A'),
+                        'struck_off_until' => $profile->struck_off_until?->format('d M Y, h:i A'),
+                        'remaining_days' => $profile->remainingSuspensionDays(),
+                        'reason' => $profile->termination_reason,
+                        'order_reference' => $profile->order_reference,
+                    ];
+                }
+            } elseif ($profile->status === 'terminated') {
+                $sanction = [
+                    'status' => 'terminated',
+                    'type' => 'terminated',
+                    'struck_off_at' => $profile->struck_off_at?->format('d M Y, h:i A'),
+                    'reason' => $profile->termination_reason,
+                    'order_reference' => $profile->order_reference,
+                ];
+            }
+
+            // Also check for enrollment-level sanction if not already captured
+            if (! $sanction) {
+                $sanctionedEnrollment = $profile->enrollments()
+                    ->whereIn('status', ['struck_off', 'terminated'])
+                    ->latest('struck_off_at')
+                    ->first();
+
+                if ($sanctionedEnrollment) {
+                    if ($sanctionedEnrollment->status === 'struck_off') {
+                        if ($sanctionedEnrollment->struck_off_until && now()->greaterThan($sanctionedEnrollment->struck_off_until)) {
+                            $sanctionedEnrollment->update([
+                                'status' => 'active',
+                                'struck_off_at' => null,
+                                'struck_off_until' => null,
+                                'struck_off_days' => null,
+                                'disciplinary_reason' => null,
+                                'disciplined_by' => null,
+                            ]);
+                        } else {
+                            $sanction = [
+                                'status' => 'struck_off',
+                                'type' => 'struck_off',
+                                'struck_off_days' => $sanctionedEnrollment->struck_off_days,
+                                'struck_off_at' => $sanctionedEnrollment->struck_off_at?->format('d M Y, h:i A'),
+                                'struck_off_until' => $sanctionedEnrollment->struck_off_until?->format('d M Y, h:i A'),
+                                'remaining_days' => $sanctionedEnrollment->remainingSuspensionDays(),
+                                'reason' => $sanctionedEnrollment->disciplinary_reason ?? $profile->termination_reason ?? 'Academic Disciplinary Sanction',
+                                'order_reference' => $profile->order_reference ?? ('GTTI/ORD/' . date('Y')),
+                            ];
+                        }
+                    } elseif ($sanctionedEnrollment->status === 'terminated') {
+                        $sanction = [
+                            'status' => 'terminated',
+                            'type' => 'terminated',
+                            'struck_off_at' => $sanctionedEnrollment->struck_off_at?->format('d M Y, h:i A') ?? $profile->struck_off_at?->format('d M Y, h:i A'),
+                            'reason' => $sanctionedEnrollment->disciplinary_reason ?? $profile->termination_reason ?? 'Executive Expulsion Decree',
+                            'order_reference' => $profile->order_reference ?? ('GTTI/EXP/' . date('Y')),
+                        ];
+                    }
+                }
+            }
+        }
+
         $activeEnrollment = $profile?->enrollments()
             ->where('status', 'active')
             ->with(['course.trade.program.department', 'batch.teachers'])
@@ -320,6 +413,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Student/Dashboard', [
             'userData' => $user,
+            'sanction' => $sanction,
             'announcements' => $announcements,
             'onlineTests' => $onlineTests,
             'pendingTestsCount' => $pendingTestsCount,

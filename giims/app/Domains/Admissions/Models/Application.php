@@ -30,7 +30,17 @@ class Application extends Model
     {
         return [
             'merit_score' => 'decimal:2',
+            'test_date' => 'date',
+            'scrutinized_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the user (clerk or admin) who scrutinized the application.
+     */
+    public function scrutinizer(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Identity\Models\User::class, 'scrutinized_by');
     }
 
     /**
@@ -71,5 +81,13 @@ class Application extends Model
     public function meritList(): BelongsTo
     {
         return $this->belongsTo(MeritList::class);
+    }
+
+    /**
+     * Get the entrance test attempt for this application.
+     */
+    public function entranceTestAttempt(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EntranceTestAttempt::class);
     }
 }

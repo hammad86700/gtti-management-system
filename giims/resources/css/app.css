@@ -3,16 +3,22 @@
 @tailwind utilities;
 
 :root {
-    --govt-green: #00401A;
-    --govt-green-dark: #00240E;
-    --govt-green-light: #006B3F;
+    --brand-pine: #0B3B24;
+    --brand-pine-hover: #124E31;
+    --brand-pine-active: #175C3B;
+    --brand-pine-surface: #082D1B;
+    --brand-emerald: #10B981;
+    --brand-canvas: #F4F6F8;
+    --govt-green: #0B3B24;
+    --govt-green-dark: #062114;
+    --govt-green-light: #10B981;
     --govt-green-pale: #EDF7F1;
     --govt-gold: #C49A1A;
     --govt-gold-light: #EDCB57;
     --govt-gold-pale: #FDF9EB;
     --govt-surface: #FFFFFF;
-    --govt-canvas: #F8FAF8;
-    --govt-dark: #0F2618;
+    --govt-canvas: #F4F6F8;
+    --govt-dark: #0B3B24;
 }
 
 html {
@@ -22,7 +28,7 @@ html {
 body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: var(--govt-canvas);
+    background-color: var(--brand-canvas);
     color: #0F172A;
 }
 
@@ -129,4 +135,33 @@ body {
         background: white !important;
         color: black !important;
     }
+}
+
+/* Performance Grading Color Tiers */
+.tier-exceeding {
+    background-color: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+}
+.tier-meeting {
+    background-color: #F0F9FF;
+    color: #0369A1;
+    border: 1px solid #BAE6FD;
+}
+.tier-approaching {
+    background-color: #FFFBEB;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+}
+.tier-below {
+    background-color: #FFF1F2;
+    color: #BE123C;
+    border: 1px solid #FECDD3;
+}
+
+/* Institutional Card Surfaces */
+.card-surface {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }

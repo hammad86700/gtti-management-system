@@ -231,15 +231,7 @@ export default function Dashboard({
     }).format(new Date());
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
-                    <span className="font-bold text-govt-green">GTTI RYK</span>
-                    <span>/</span>
-                    <span className="text-slate-900 font-semibold truncate">Instructor Dashboard</span>
-                </div>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Instructor Dashboard - GTTI RYK" />
 
             <div className="space-y-6">
@@ -733,6 +725,14 @@ export default function Dashboard({
                                                 >
                                                     <MapPin className="h-3 w-3" />
                                                     <span>Live GPS</span>
+                                                </Link>
+                                                <Link
+                                                    href={route('teacher.curriculum.index', batch.id)}
+                                                    className="py-2 px-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-black transition flex items-center justify-center space-x-1"
+                                                    title="Day-by-Day Curriculum Roadmap"
+                                                >
+                                                    <Calendar className="h-3 w-3 text-emerald-700" />
+                                                    <span>Roadmap</span>
                                                 </Link>
                                                 <Link
                                                     href={route('teacher.lesson-plans.index', { batchId: batch.id })}

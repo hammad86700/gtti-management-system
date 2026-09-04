@@ -19,12 +19,22 @@ class HomeController extends Controller
         $activeCampaign = AdmissionCampaign::where('is_active', true)->latest()->first();
 
         $departments = Department::where('is_active', true)
-            ->with(['programs.trades.courses'])
+            ->with(['programs.trades.courses' => function ($q) {
+                $q->where('is_published', true);
+            }])
+            ->get();
+
+        $publishedCourses = \App\Domains\Organization\Models\Course::where('is_published', true)
+            ->where('is_active', true)
+            ->with(['trade.program.department'])
+            ->orderBy('category')
+            ->orderBy('name')
             ->get();
 
         return Inertia::render('Public/Home', [
             'activeCampaign' => $activeCampaign,
             'departments' => $departments,
+            'publishedCourses' => $publishedCourses,
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
         ]);
