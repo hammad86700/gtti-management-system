@@ -157,6 +157,37 @@ class ClerkAdmissionPortalTest extends TestCase
         $course->refresh();
         $this->assertEquals('AutoCAD & Architectural Drafting', $course->name);
         $this->assertEquals('first_come_first_served', $course->admission_type);
+
+        // 3. Update Course via POST (FormData method spoofing / multipart submission)
+        $postUpdateRes = $this->actingAs($this->clerk)->post(route('clerk.courses.update', $course->id), [
+            '_method' => 'patch',
+            'trade_id' => $trade->id,
+            'name' => 'AutoCAD & Architectural Drafting (Updated)',
+            'entry_level' => 'Matric',
+            'admission_type' => 'merit_based',
+            'requires_entrance_test' => 'true',
+            'intake_capacity' => 60,
+            'is_published' => 'true',
+            'is_active' => 'true',
+        ]);
+
+        $postUpdateRes->assertRedirect();
+        $course->refresh();
+        $this->assertEquals('AutoCAD & Architectural Drafting (Updated)', $course->name);
+        $this->assertEquals(60, $course->intake_capacity);
+
+        // 4. Test 1-click toggle publish
+        $this->assertTrue($course->is_published);
+        $toggleRes = $this->actingAs($this->clerk)->post(route('clerk.courses.toggle-publish', $course->id));
+        $toggleRes->assertRedirect();
+        $course->refresh();
+        $this->assertFalse($course->is_published);
+
+        // Toggle back to published
+        $toggleBackRes = $this->actingAs($this->clerk)->post(route('clerk.courses.toggle-publish', $course->id));
+        $toggleBackRes->assertRedirect();
+        $course->refresh();
+        $this->assertTrue($course->is_published);
     }
 
     public function test_clerk_can_verify_applicant_dossier(): void

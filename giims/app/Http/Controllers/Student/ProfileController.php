@@ -28,19 +28,34 @@ class ProfileController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'cnic' => 'required|string|max:25',
             'father_name' => 'required|string|max:255',
             'date_of_birth' => 'required|date',
             'gender' => 'required|string|max:50',
             'domicile_district' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
             'emergency_contact' => 'required|string|max:50',
+            'matric_total_marks' => 'nullable|integer|min:100|max:1500',
+            'matric_obtained_marks' => 'nullable|integer|min:0|max:1500',
+            'matric_board' => 'nullable|string|max:100',
+            'intermediate_total_marks' => 'nullable|integer|min:100|max:1500',
+            'intermediate_obtained_marks' => 'nullable|integer|min:0|max:1500',
+            'intermediate_board' => 'nullable|string|max:100',
         ]);
 
-        auth()->user()->studentProfile()->updateOrCreate(
-            ['user_id' => auth()->id()],
-            $validated
+        $user = auth()->user();
+        $user->update([
+            'cnic' => $validated['cnic'],
+            'phone' => $validated['emergency_contact'] ?: $user->phone,
+        ]);
+
+        $profileData = collect($validated)->except(['cnic'])->toArray();
+
+        $user->studentProfile()->updateOrCreate(
+            ['user_id' => $user->id],
+            $profileData
         );
 
-        return redirect()->back()->with('success', 'Master Student Profile saved successfully.');
+        return redirect()->back()->with('success', 'Master Student Profile & Academic Record saved successfully.');
     }
 }

@@ -44,7 +44,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(fu
 
     Route::get('/organization', [OrganizationController::class, 'index'])->name('admin.organization.index');
     Route::post('/organization/courses', [OrganizationController::class, 'storeCourse'])->name('admin.organization.courses.store');
-    Route::patch('/organization/courses/{id}', [OrganizationController::class, 'updateCourse'])->name('admin.organization.courses.update');
+    Route::match(['patch', 'post'], '/organization/courses/{id}', [OrganizationController::class, 'updateCourse'])->name('admin.organization.courses.update');
     Route::delete('/organization/courses/{id}', [OrganizationController::class, 'destroyCourse'])->name('admin.organization.courses.destroy');
 
     Route::post('/organization/departments', [OrganizationController::class, 'storeDepartment'])->name('admin.organization.departments.store');
@@ -306,7 +306,8 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     // Courses & Trades Catalog
     Route::get('/courses', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'index'])->name('courses.index');
     Route::post('/courses', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'store'])->name('courses.store');
-    Route::patch('/courses/{id}', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'update'])->name('courses.update');
+    Route::match(['patch', 'post'], '/courses/{id}', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'update'])->name('courses.update');
+    Route::post('/courses/{id}/toggle-publish', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'togglePublish'])->name('courses.toggle-publish');
     Route::delete('/courses/{id}', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'destroy'])->name('courses.destroy');
     Route::post('/courses/{id}/generate-challans', [\App\Http\Controllers\Clerk\CourseManagementController::class, 'generateChallans'])->name('courses.generate-challans');
 
@@ -326,14 +327,28 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::get('/fees/reconciliation', [\App\Http\Controllers\Clerk\FeeReconciliationController::class, 'index'])->name('fees.reconciliation');
     Route::post('/fees/reconcile-scroll', [\App\Http\Controllers\Clerk\FeeReconciliationController::class, 'reconcileScroll'])->name('fees.reconcile-scroll');
     Route::get('/fees/audit-report', [\App\Http\Controllers\Clerk\FeeReconciliationController::class, 'exportAuditReport'])->name('fees.audit-report');
+
+    // Admission Cycle: Custom Challan Upload Desk
+    Route::post('/applications/{id}/upload-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'uploadCustomChallan'])->name('applications.upload-challan');
+    Route::get('/applications/{id}/custom-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadCustomChallan'])->name('applications.custom-challan');
+
+    // Admission Cycle: Official Merit List Upload & Gazette Desk
+    Route::get('/merit-lists', [\App\Http\Controllers\Clerk\MeritListController::class, 'index'])->name('merit-lists.index');
+    Route::post('/merit-lists', [\App\Http\Controllers\Clerk\MeritListController::class, 'store'])->name('merit-lists.store');
+    Route::post('/merit-lists/{id}/toggle-publish', [\App\Http\Controllers\Clerk\MeritListController::class, 'togglePublish'])->name('merit-lists.toggle-publish');
+    Route::delete('/merit-lists/{id}', [\App\Http\Controllers\Clerk\MeritListController::class, 'destroy'])->name('merit-lists.destroy');
 });
 
-// Phase 32: PBTE Examination Admit Card (Roll Number Slip)
+// Phase 32: PBTE Examination Admit Card (Roll Number Slip) & Official Entrance Test Slip
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admit-card/{enrollmentId}', [\App\Http\Controllers\Shared\AdmitCardController::class, 'print'])->name('admit-card.print');
     Route::get('/admit-cards/batch/{batchId}', [\App\Http\Controllers\Shared\AdmitCardController::class, 'printBatch'])
         ->middleware('role:admin,clerk,teacher')
         ->name('admit-cards.batch');
+    Route::get('/entrance-slip/{applicationId}', [\App\Http\Controllers\Shared\AdmitCardController::class, 'printEntranceSlip'])->name('admit-card.entrance-slip');
+    Route::get('/applications/{id}/print-challan', [\App\Http\Controllers\Shared\AdmitCardController::class, 'printChallan'])->name('applications.print-challan');
+    Route::get('/applications/{id}/challan-document', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadCustomChallan'])->name('applications.challan-document');
+    Route::get('/merit-lists/{id}/download', [\App\Http\Controllers\Clerk\MeritListController::class, 'download'])->name('clerk.merit-lists.download');
 });
 
 // GTTI Exam System: Frictionless Local Intranet Examination Portal (No Passwords)

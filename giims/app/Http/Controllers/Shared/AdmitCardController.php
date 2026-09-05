@@ -138,4 +138,171 @@ class AdmitCardController extends Controller
             'issued_at'           => now()->format('d M, Y'),
         ];
     }
+
+    /**
+     * Generate & render an individual Official Entrance Test Roll Number Slip / Admit Card.
+     */
+    public function printEntranceSlip(Request $request, int|string $applicationId): Response
+    {
+        $application = \App\Domains\Admissions\Models\Application::with([
+            'studentProfile.user',
+            'course.trade.program.department',
+        ])->findOrFail($applicationId);
+
+        $user = $request->user();
+        $isStaff = $user->hasRole('admin') || $user->hasRole('clerk') || $user->hasRole('teacher') || $user->is_super_admin || $user->is_admin;
+
+        // Security check: Candidate can only print their own slip unless staff
+        if (!$isStaff && $application->studentProfile?->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to applicant entrance test slip.');
+        }
+
+        // Must require entrance test
+        if (!$application->requiresEntranceTest()) {
+            abort(403, 'Entrance test is not required for this course (Direct / FCFS track). No roll number slip is generated.');
+        }
+
+        // Must be verified by clerk
+        if (!$application->isVerified()) {
+            abort(403, 'Application is currently under clerical verification. The official Entrance Roll Number Slip will be unlocked once approved.');
+        }
+
+        $card = $this->buildEntranceSlipPayload($application);
+
+        return Inertia::render('Shared/PrintEntranceAdmitCard', [
+            'card' => $card,
+        ]);
+    }
+
+    /**
+     * Build entrance slip payload.
+     */
+    protected function buildEntranceSlipPayload(\App\Domains\Admissions\Models\Application $application): array
+    {
+        $user = $application->studentProfile?->user;
+        $profile = $application->studentProfile;
+        $course = $application->course;
+
+        $rollNumber = $application->entrance_roll_number ?: $application->generateEntranceRollNumber();
+        $testDate = $application->test_date 
+            ? $application->test_date->format('l, d F Y')
+            : 'Scheduled on Admission Notice (Check Notice Board)';
+
+        return [
+            'id'                  => $application->id,
+            'roll_number'         => $rollNumber,
+            'application_number'  => $application->application_number,
+            'candidate_name'      => $user?->name ?? 'Candidate',
+            'father_name'         => $profile?->father_name ?? 'N/A',
+            'cnic'                => $user?->cnic ?? 'N/A',
+            'phone'               => $profile?->phone_number ?? 'N/A',
+            'district'            => $profile?->domicile_district ?? 'Rahim Yar Khan',
+            'address'             => $profile?->address ?? 'N/A',
+            'gender'              => ucfirst($profile?->gender ?? 'Male'),
+            'course_name'         => $course?->name ?? 'Technical Trade Course',
+            'trade_name'          => $course?->trade?->name ?? 'Vocational & Technical Training',
+            'department_name'     => $course?->trade?->program?->department?->name ?? 'Engineering & Technical Trades',
+            'duration'            => $course?->formatted_duration ?? '6 Months',
+            'test_date'           => $testDate,
+            'test_time'           => $application->test_time ?: '09:00 AM Sharp',
+            'test_venue'          => $application->test_venue ?: 'Govt Technical Training Institute (GTTI), Main Examination Hall & Computer Labs, Khanpur Road, Rahim Yar Khan',
+            'clerk_notice'        => $application->clerk_notice ?: 'Report 30 minutes prior to exam time. Bring original CNIC/B-Form and clipboard.',
+            'barcode'             => "ET*{$rollNumber}*" . date('Y'),
+            'issued_at'           => now()->format('d M, Y - h:i A'),
+        ];
+    }
+
+    /**
+     * Generate & render an individual Official 3-Copy Bank Fee Challan Voucher.
+     */
+    public function printChallan(Request $request, int|string $applicationId): Response
+    {
+        $application = \App\Domains\Admissions\Models\Application::with([
+            'studentProfile.user',
+            'course.trade.program.department',
+            'feeChallan',
+        ])->findOrFail($applicationId);
+
+        $user = $request->user();
+        $isStaff = $user->hasRole('admin') || $user->hasRole('clerk') || $user->hasRole('teacher') || $user->is_super_admin || $user->is_admin;
+
+        // Security check: Candidate can only print their own slip unless staff
+        if (!$isStaff && $application->studentProfile?->user_id !== $user->id) {
+            abort(403, 'Unauthorized access to applicant fee challan voucher.');
+        }
+
+        $voucher = $this->buildChallanVoucherPayload($application);
+
+        return Inertia::render('Shared/PrintFeeChallan', [
+            'voucher' => $voucher,
+        ]);
+    }
+
+    /**
+     * Build 3-part bank fee challan voucher payload.
+     */
+    protected function buildChallanVoucherPayload(\App\Domains\Admissions\Models\Application $application): array
+    {
+        $user = $application->studentProfile?->user;
+        $profile = $application->studentProfile;
+        $course = $application->course;
+        $challan = $application->feeChallan;
+
+        $challanNumber = $challan?->challan_number ?: ('CH-2026-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT));
+        
+        $classesStartDate = $course?->classes_start_date 
+            ? \Illuminate\Support\Carbon::parse($course->classes_start_date)->format('d M, Y')
+            : '16 Sep, 2026';
+
+        // Due date is 1 day before classes start date or 7 days from now
+        $dueDate = $challan?->due_date
+            ? \Illuminate\Support\Carbon::parse($challan->due_date)->format('d M, Y')
+            : ($course?->classes_start_date ? \Illuminate\Support\Carbon::parse($course->classes_start_date)->subDay()->format('d M, Y') : '15 Sep, 2026');
+
+        $issueDate = $application->clerk_challan_uploaded_at
+            ? \Illuminate\Support\Carbon::parse($application->clerk_challan_uploaded_at)->format('d M, Y')
+            : now()->format('d M, Y');
+
+        $amount = (float) ($challan?->amount ?: 3500.00);
+
+        return [
+            'id' => $application->id,
+            'challan_number' => $challanNumber,
+            'application_number' => $application->application_number,
+            'candidate_name' => $user?->name ?? 'Candidate',
+            'father_name' => $profile?->father_name ?? 'N/A',
+            'cnic' => $user?->cnic ?? 'N/A',
+            'phone' => $profile?->phone_number ?? 'N/A',
+            'district' => $profile?->domicile_district ?? 'Rahim Yar Khan',
+            'course_name' => $course?->name ?? 'Technical Trade Course',
+            'trade_name' => $course?->trade?->name ?? 'Vocational & Technical Training',
+            'duration' => $course?->formatted_duration ?? '6 Months',
+            'issue_date' => $issueDate,
+            'due_date' => $dueDate,
+            'classes_start_date' => $classesStartDate,
+            'amount' => $amount,
+            'fee_breakdown' => [
+                ['head' => 'Admission & Registration Fee', 'amount' => 1000],
+                ['head' => 'Tuition & Training Fee', 'amount' => 1500],
+                ['head' => 'Examination & Assessment Fund', 'amount' => 500],
+                ['head' => 'Workshop Safety & Student ID Card', 'amount' => 500],
+            ],
+            'bank_info' => [
+                [
+                    'name' => 'National Bank of Pakistan (NBP)',
+                    'branch' => 'Main Branch / GTTI Counter, Khanpur Road, RYK',
+                    'code' => '0492',
+                    'account_no' => 'PK42NBPA04920038920194',
+                ],
+                [
+                    'name' => 'The Bank of Punjab (BOP)',
+                    'branch' => 'City Branch, Rahim Yar Khan',
+                    'code' => '0128',
+                    'account_no' => 'PK71BPUN0128006510009982',
+                ],
+            ],
+            'clerk_challan_path' => $application->clerk_challan_path,
+            'barcode' => "CH*{$challanNumber}*" . date('Y'),
+        ];
+    }
 }

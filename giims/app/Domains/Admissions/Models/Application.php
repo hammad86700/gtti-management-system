@@ -34,7 +34,39 @@ class Application extends Model
             'scrutinized_at' => 'datetime',
             'challan_deposit_date' => 'date',
             'challan_uploaded_at' => 'datetime',
+            'clerk_challan_uploaded_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Generate or get the unique entrance test roll number.
+     */
+    public function generateEntranceRollNumber(): string
+    {
+        if ($this->entrance_roll_number) {
+            return $this->entrance_roll_number;
+        }
+
+        $roll = 'ET-' . date('Y') . '-' . str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+        $this->update(['entrance_roll_number' => $roll]);
+
+        return $roll;
+    }
+
+    /**
+     * Determine if this application requires an entrance test based on course settings.
+     */
+    public function requiresEntranceTest(): bool
+    {
+        return (bool) ($this->course?->requires_entrance_test ?? true);
+    }
+
+    /**
+     * Determine if this application has been verified by the clerk.
+     */
+    public function isVerified(): bool
+    {
+        return in_array($this->status, ['verified', 'selected', 'selected_for_admission', 'waiting_list', 'confirmed']) || !is_null($this->scrutinized_at);
     }
 
     /**

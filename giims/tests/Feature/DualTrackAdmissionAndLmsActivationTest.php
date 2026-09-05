@@ -418,5 +418,133 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
         $this->assertTrue((bool) $enr1->is_lms_active);
         $this->assertTrue((bool) $enr2->is_lms_active);
     }
+
+    public function test_end_to_end_registration_profile_academic_marks_fcfs_and_teacher_lms_activation(): void
+    {
+        Storage::fake('public');
+
+        // 1. Candidate registers account with CNIC, father name, phone
+        $regResponse = $this->post(route('register'), [
+            'name' => 'Usman Tariq',
+            'email' => 'usman@gtti.edu.pk',
+            'cnic' => '31202-9876543-1',
+            'phone' => '0301-9988776',
+            'father_name' => 'Tariq Mahmood',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ]);
+
+        $regResponse->assertRedirect(route('dashboard'));
+        $user = User::where('email', 'usman@gtti.edu.pk')->first();
+        $this->assertNotNull($user);
+        $this->assertEquals('31202-9876543-1', $user->cnic);
+        $this->assertEquals('Tariq Mahmood', $user->studentProfile?->father_name);
+
+        // 2. Candidate updates profile with academic marks
+        $profileResponse = $this->actingAs($user)->post(route('student.profile.update'), [
+            'cnic' => '31202-9876543-1',
+            'father_name' => 'Tariq Mahmood',
+            'date_of_birth' => '2004-05-15',
+            'gender' => 'Male',
+            'domicile_district' => 'Rahim Yar Khan',
+            'address' => 'Model Town, Street 4, RYK',
+            'emergency_contact' => '0301-9988776',
+            'matric_total_marks' => 1100,
+            'matric_obtained_marks' => 920,
+            'matric_board' => 'BISE Bahawalpur',
+            'intermediate_total_marks' => 1100,
+            'intermediate_obtained_marks' => 860,
+            'intermediate_board' => 'BISE Bahawalpur',
+        ]);
+
+        $profileResponse->assertRedirect();
+        $user->studentProfile->refresh();
+        $this->assertEquals(920, $user->studentProfile->matric_obtained_marks);
+        $this->assertEquals(1100, $user->studentProfile->matric_total_marks);
+
+        // 3. Candidate applies for Track B FCFS course (no entrance test required)
+        $fcfsCourse = Course::create([
+            'trade_id' => $this->trade->id,
+            'name' => 'Python & Machine Learning Fast Track',
+            'entry_level' => 'Matric',
+            'admission_type' => 'first_come_first_served',
+            'requires_entrance_test' => false,
+            'intake_capacity' => 30,
+            'classes_start_date' => '2026-10-20',
+            'is_published' => true,
+            'is_active' => true,
+        ]);
+
+        $cnicDoc = UploadedFile::fake()->create('cnic_usman.pdf', 200, 'application/pdf');
+        $matricDoc = UploadedFile::fake()->create('matric_usman.pdf', 200, 'application/pdf');
+
+        $applyResponse = $this->actingAs($user)->post(route('student.application.store'), [
+            'course_id' => $fcfsCourse->id,
+            'cnic' => '31202-9876543-1',
+            'father_name' => 'Tariq Mahmood',
+            'matric_total_marks' => 1100,
+            'matric_obtained_marks' => 920,
+            'intermediate_total_marks' => 1100,
+            'intermediate_obtained_marks' => 860,
+            'cnic_document' => $cnicDoc,
+            'academic_document' => $matricDoc,
+        ]);
+
+        $applyResponse->assertRedirect(route('dashboard'));
+
+        $application = Application::where('student_profile_id', $user->studentProfile->id)
+            ->where('course_id', $fcfsCourse->id)
+            ->first();
+
+        $this->assertNotNull($application);
+        $this->assertEquals(920, $application->matric_obtained_marks);
+        $this->assertEquals(1100, $application->matric_total_marks);
+
+        // 4. Instant bank fee challan exists immediately
+        $challan = FeeChallan::where('application_id', $application->id)->first();
+        $this->assertNotNull($challan);
+        $this->assertEquals('unpaid', $challan->status);
+
+        // 5. Candidate uploads paid challan receipt
+        $receipt = UploadedFile::fake()->create('nbp_challan_receipt.png', 400, 'image/png');
+        $uploadResponse = $this->actingAs($user)->post(route('student.application.upload-challan', $application->id), [
+            'challan_receipt' => $receipt,
+            'bank_reference' => 'NBP-TXN-88776655',
+            'deposit_date' => '2026-09-05',
+        ]);
+
+        $uploadResponse->assertRedirect();
+        $application->refresh();
+        $this->assertEquals('pending_verification', $application->fee_status);
+
+        // 6. Clerk verifies bank receipt & confirms admission
+        $clerkVerifyResponse = $this->actingAs($this->clerk)->post(route('clerk.applications.verify-challan', $application->id));
+        $clerkVerifyResponse->assertRedirect();
+
+        $application->refresh();
+        $this->assertEquals('confirmed', $application->status);
+        $this->assertEquals('paid', $application->fee_status);
+        $this->assertStringContainsString('Tuesday, 20 October 2026', $application->classes_commencement_notice);
+
+        // 7. Trainee enrollment exists with LMS inactive initially
+        $enrollment = Enrollment::where('student_profile_id', $user->studentProfile->id)
+            ->where('course_id', $fcfsCourse->id)
+            ->first();
+
+        $this->assertNotNull($enrollment);
+        $this->assertFalse((bool) $enrollment->is_lms_active);
+
+        // Assign teacher to batch
+        $enrollment->batch->teachers()->attach($this->teacher);
+
+        // 8. Teacher 1-click activates LMS for trainee on class commencement day
+        $teacherActivateResponse = $this->actingAs($this->teacher)->post(route('teacher.enrollments.toggle-lms', $enrollment->id));
+        $teacherActivateResponse->assertRedirect();
+
+        $enrollment->refresh();
+        $this->assertTrue((bool) $enrollment->is_lms_active);
+        $this->assertEquals($this->teacher->id, $enrollment->lms_activated_by);
+    }
 }
+
 

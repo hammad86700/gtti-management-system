@@ -34,12 +34,17 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'cnic' => 'nullable|string|max:25',
+            'phone' => 'nullable|string|max:25',
+            'father_name' => 'nullable|string|max:255',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'cnic' => $request->cnic,
+            'phone' => $request->phone,
             'password' => Hash::make($request->password),
         ]);
 
@@ -48,6 +53,14 @@ class RegisteredUserController extends Controller
             ['name' => 'Student', 'is_system' => false]
         );
         $user->roles()->attach($studentRole->id);
+
+        \App\Domains\Student\Models\StudentProfile::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'father_name' => $request->father_name,
+                'status' => 'applicant',
+            ]
+        );
 
         event(new Registered($user));
 

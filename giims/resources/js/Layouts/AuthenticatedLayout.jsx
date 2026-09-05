@@ -28,6 +28,7 @@ import {
     CheckCircle2,
     Layers,
     ShieldAlert,
+    AlertTriangle,
     Search
 } from 'lucide-react';
 import Dropdown from '@/Components/Dropdown';
@@ -35,7 +36,7 @@ import ErrorBoundary from '@/Components/ErrorBoundary';
 import MobileBottomNav from '@/Components/MobileBottomNav';
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, site_settings: siteSettings = {} } = usePage().props;
+    const { auth, flash = {}, site_settings: siteSettings = {} } = usePage().props;
     const user = auth?.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -598,6 +599,32 @@ export default function AuthenticatedLayout({ header, children }) {
 
                 {/* Main Content */}
                 <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${!isAdmin && !isTeacher ? 'pb-20 md:pb-8' : ''}`}>
+                    {/* Global Flash Alerts */}
+                    {flash?.success && (
+                        <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 leading-relaxed">{flash.success}</div>
+                        </div>
+                    )}
+                    {flash?.error && (
+                        <div className="mb-5 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 leading-relaxed">{flash.error}</div>
+                        </div>
+                    )}
+                    {flash?.warning && (
+                        <div className="mb-5 p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 leading-relaxed">{flash.warning}</div>
+                        </div>
+                    )}
+                    {flash?.info && (
+                        <div className="mb-5 p-4 rounded-2xl bg-sky-50 border border-sky-300 text-sky-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <Bell className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 leading-relaxed">{flash.info}</div>
+                        </div>
+                    )}
+
                     <ErrorBoundary>
                         {children}
                     </ErrorBoundary>

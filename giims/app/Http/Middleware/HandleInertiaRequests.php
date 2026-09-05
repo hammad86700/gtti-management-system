@@ -71,6 +71,12 @@ class HandleInertiaRequests extends Middleware
                 ]) : null,
             ],
             'site_settings' => \App\Domains\Operations\Models\SiteSetting::allAsKeyValue(),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
         ];
     }
 }

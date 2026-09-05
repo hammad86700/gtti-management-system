@@ -97,9 +97,12 @@ class ApplicationReviewController extends Controller
             return redirect()->back()->with('success', "Application #{$application->application_number} verified and directly selected for admission (FCFS track). Fee challan unlocked.");
         }
 
-        // Merit-based track: mark verified awaiting test schedule
+        // Merit-based track: mark verified awaiting test schedule, generate roll number
+        $rollNumber = $application->entrance_roll_number ?: 'ET-' . date('Y') . '-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT);
+
         $application->update([
             'status' => 'verified',
+            'entrance_roll_number' => $rollNumber,
             'scrutinized_by' => auth()->id(),
             'scrutinized_at' => now(),
             'clerk_remarks' => null,
@@ -109,10 +112,10 @@ class ApplicationReviewController extends Controller
             activity()
                 ->causedBy(auth()->user())
                 ->performedOn($application)
-                ->log("Admission Clerk verified applicant '{$application->studentProfile?->user?->name}' for {$application->course?->name}");
+                ->log("Admission Clerk verified applicant '{$application->studentProfile?->user?->name}' for {$application->course?->name} with Roll No {$rollNumber}");
         }
 
-        return redirect()->back()->with('success', "Application #{$application->application_number} verified successfully.");
+        return redirect()->back()->with('success', "Application #{$application->application_number} verified successfully. Entrance Roll No #{$rollNumber} assigned.");
     }
 
     /**
@@ -280,10 +283,68 @@ class ApplicationReviewController extends Controller
     {
         $application = Application::findOrFail($id);
 
-        if (!$application->challan_receipt_path || !\Illuminate\Support\Facades\Storage::disk('local')->exists($application->challan_receipt_path)) {
+        if (!$application->challan_receipt_path) {
             return redirect()->back()->with('error', 'Challan payment receipt document not found.');
         }
 
-        return response()->file(\Illuminate\Support\Facades\Storage::disk('local')->path($application->challan_receipt_path));
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($application->challan_receipt_path)) {
+            return response()->file(\Illuminate\Support\Facades\Storage::disk('public')->path($application->challan_receipt_path));
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('local')->exists($application->challan_receipt_path)) {
+            return response()->file(\Illuminate\Support\Facades\Storage::disk('local')->path($application->challan_receipt_path));
+        }
+
+        return redirect()->back()->with('error', 'Challan payment receipt document not found.');
+    }
+
+    /**
+     * Upload an official fee challan voucher document for a student.
+     */
+    public function uploadCustomChallan(Request $request, int $id): RedirectResponse
+    {
+        $request->validate([
+            'challan_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $application = Application::with('studentProfile.user')->findOrFail($id);
+        $path = $request->file('challan_file')->store('custom_challans', 'public');
+
+        $updates = [
+            'clerk_challan_path' => $path,
+            'clerk_challan_uploaded_at' => now(),
+        ];
+
+        // When clerk issues an official fee challan, promote candidate to selected status if pending
+        if (in_array($application->status, ['submitted', 'verified'])) {
+            $updates['status'] = 'selected';
+        }
+
+        $application->update($updates);
+
+        return redirect()->back()->with('success', "Official Fee Challan uploaded successfully for candidate '{$application->studentProfile?->user?->name}'! Visible on student portal.");
+    }
+
+    /**
+     * Download or view the clerk-uploaded custom fee challan.
+     */
+    public function downloadCustomChallan(int $id)
+    {
+        $application = Application::findOrFail($id);
+        $user = auth()->user();
+
+        // Check authorization: allow admin/clerk/teacher or the candidate themselves
+        $isStaff = $user->hasRole(['admin', 'administrator', 'super-admin', 'clerk', 'admission-clerk', 'teacher']);
+        $isOwner = $user->studentProfile && $user->studentProfile->id === $application->student_profile_id;
+
+        if (!$isStaff && !$isOwner) {
+            abort(403, 'Unauthorized access to fee challan document.');
+        }
+
+        if (!$application->clerk_challan_path || !\Illuminate\Support\Facades\Storage::disk('public')->exists($application->clerk_challan_path)) {
+            return redirect()->back()->with('error', 'Uploaded fee challan document not found.');
+        }
+
+        return response()->file(\Illuminate\Support\Facades\Storage::disk('public')->path($application->clerk_challan_path));
     }
 }

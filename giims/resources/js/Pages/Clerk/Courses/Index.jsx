@@ -51,6 +51,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
 
     // Form for editing course
     const editForm = useForm({
+        _method: 'patch',
         trade_id: '',
         name: '',
         category: '',
@@ -86,7 +87,11 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
 
     const handleOpenEdit = (course) => {
         setEditingCourse(course);
+        const isFcfs = course.admission_type === 'first_come_first_served' || course.requires_entrance_test === false || course.requires_entrance_test === 0;
+        const requiresEntrance = !isFcfs && Boolean(course.requires_entrance_test);
+
         editForm.setData({
+            _method: 'patch',
             trade_id: course.trade_id,
             name: course.name,
             category: course.category || 'General Vocational',
@@ -94,9 +99,9 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             duration_value: course.duration_value ?? 6,
             total_academic_days: course.total_academic_days ?? 60,
             overview_description: course.overview_description || '',
-            entry_level: course.entry_level,
-            admission_type: course.admission_type || 'merit_based',
-            requires_entrance_test: Boolean(course.requires_entrance_test ?? (course.admission_type !== 'first_come_first_served')),
+            entry_level: course.entry_level || '',
+            admission_type: isFcfs ? 'first_come_first_served' : 'merit_based',
+            requires_entrance_test: requiresEntrance,
             intake_capacity: course.intake_capacity ?? 50,
             classes_start_date: course.classes_start_date ? course.classes_start_date.split('T')[0] : '',
             matric_weightage: course.matric_weightage ?? 50,
@@ -105,19 +110,29 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             interview_max_marks: course.interview_max_marks ?? 10,
             interview_venue: course.interview_venue || 'Lab 3 / Interview Room',
             is_published: Boolean(course.is_published ?? true),
-            is_active: Boolean(course.is_active),
+            is_active: Boolean(course.is_active ?? true),
             syllabus_document: null,
         });
         setEditModal(true);
     };
 
-    const handleUpdate = (e) => {
-        e.preventDefault();
+    const handleUpdate = (e, shouldPublish = null) => {
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+        }
         if (!editingCourse) return;
+
+        // In Inertia React useForm, transform does NOT return the form object; it is void.
+        editForm.transform((data) => ({
+            ...data,
+            _method: 'patch',
+            is_published: shouldPublish !== null ? shouldPublish : Boolean(data.is_published),
+            requires_entrance_test: data.admission_type === 'first_come_first_served' ? false : Boolean(data.requires_entrance_test),
+        }));
 
         editForm.post(route('clerk.courses.update', editingCourse.id), {
             forceFormData: true,
-            _method: 'patch',
+            preserveScroll: true,
             onSuccess: () => {
                 setEditModal(false);
                 setEditingCourse(null);
@@ -254,16 +269,19 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                             </div>
                                         </td>
                                         <td className="py-3.5 px-3 text-center">
-                                            {course.is_published ? (
-                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                                    <Globe className="h-3 w-3" />
-                                                    <span>Live Public</span>
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
-                                                    <span>Draft / Hidden</span>
-                                                </span>
-                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => router.post(route('clerk.courses.toggle-publish', course.id), {}, { preserveScroll: true })}
+                                                className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition cursor-pointer border shadow-xs ${
+                                                    course.is_published
+                                                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
+                                                        : 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
+                                                }`}
+                                                title={course.is_published ? "Click to set to Draft (hide from website)" : "Click to Publish live on website catalog"}
+                                            >
+                                                <Globe className={`h-3 w-3 ${course.is_published ? 'text-emerald-400' : 'text-amber-400'}`} />
+                                                <span>{course.is_published ? 'Live Public' : 'Draft / Unpublished'}</span>
+                                            </button>
                                         </td>
                                         <td className="py-3.5 px-4 text-center">
                                             <span className="font-mono font-black text-white text-sm">
@@ -274,6 +292,18 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                             </div>
                                         </td>
                                         <td className="py-3.5 px-4 text-right space-x-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => router.post(route('clerk.courses.toggle-publish', course.id), {}, { preserveScroll: true })}
+                                                className={`p-1.5 rounded-lg transition ${
+                                                    course.is_published
+                                                        ? 'bg-emerald-950/60 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-800/60'
+                                                        : 'bg-slate-800 text-slate-400 hover:bg-amber-950/60 hover:text-amber-300'
+                                                }`}
+                                                title={course.is_published ? "Unpublish from live website" : "Publish Live on website catalog"}
+                                            >
+                                                <Globe className="h-4 w-4" />
+                                            </button>
                                             <button
                                                 type="button"
                                                 onClick={() => handleOpenEdit(course)}
@@ -318,6 +348,20 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                         </div>
 
                         <form onSubmit={handleCreate} className="space-y-4 text-xs">
+                            {Object.keys(createForm.errors).length > 0 && (
+                                <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-600/60 text-rose-300 text-xs space-y-1">
+                                    <div className="font-bold flex items-center space-x-1.5">
+                                        <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+                                        <span>Please fix the following validation errors:</span>
+                                    </div>
+                                    <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-200">
+                                        {Object.entries(createForm.errors).map(([key, msg]) => (
+                                            <li key={key}>{msg}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-300 mb-1">Parent Trade *</label>
@@ -518,13 +562,30 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode Label</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        value={createForm.data.requires_entrance_test ? 'Merit-Based (Entrance Test + Interview)' : 'First-Come-First-Served Direct'}
-                                        className="w-full p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs font-semibold cursor-not-allowed"
-                                    />
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode & Entrance Test *</label>
+                                    <select
+                                        value={createForm.data.admission_type}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === 'first_come_first_served') {
+                                                createForm.setData((prev) => ({
+                                                    ...prev,
+                                                    admission_type: 'first_come_first_served',
+                                                    requires_entrance_test: false,
+                                                }));
+                                            } else {
+                                                createForm.setData((prev) => ({
+                                                    ...prev,
+                                                    admission_type: 'merit_based',
+                                                    requires_entrance_test: true,
+                                                }));
+                                            }
+                                        }}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold text-xs"
+                                    >
+                                        <option value="merit_based">Track A: Merit-Based (Entrance Test Required)</option>
+                                        <option value="first_come_first_served">Track B: Direct FCFS (NO Entrance Test Required)</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -593,6 +654,20 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                         </div>
 
                         <form onSubmit={handleUpdate} className="space-y-4 text-xs">
+                            {Object.keys(editForm.errors).length > 0 && (
+                                <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-600/60 text-rose-300 text-xs space-y-1">
+                                    <div className="font-bold flex items-center space-x-1.5">
+                                        <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+                                        <span>Please fix the following validation errors:</span>
+                                    </div>
+                                    <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-200">
+                                        {Object.entries(editForm.errors).map(([key, msg]) => (
+                                            <li key={key}>{msg}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-300 mb-1">Parent Trade *</label>
@@ -786,13 +861,30 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode Label</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        value={editForm.data.requires_entrance_test ? 'Merit-Based (Entrance Test + Interview)' : 'First-Come-First-Served Direct'}
-                                        className="w-full p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs font-semibold cursor-not-allowed"
-                                    />
+                                    <label className="block font-bold text-slate-300 mb-1">Admission Mode & Entrance Test *</label>
+                                    <select
+                                        value={editForm.data.admission_type}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === 'first_come_first_served') {
+                                                editForm.setData((prev) => ({
+                                                    ...prev,
+                                                    admission_type: 'first_come_first_served',
+                                                    requires_entrance_test: false,
+                                                }));
+                                            } else {
+                                                editForm.setData((prev) => ({
+                                                    ...prev,
+                                                    admission_type: 'merit_based',
+                                                    requires_entrance_test: true,
+                                                }));
+                                            }
+                                        }}
+                                        className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold text-xs"
+                                    >
+                                        <option value="merit_based">Track A: Merit-Based (Entrance Test Required)</option>
+                                        <option value="first_come_first_served">Track B: Direct FCFS (NO Entrance Test Required)</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -808,34 +900,61 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                             </div>
 
                             {/* Live Public Sync Toggle */}
-                            <div className="flex items-center space-x-2 pt-1">
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+                                <div>
+                                    <label htmlFor="edit_is_published" className="font-bold text-white block text-xs cursor-pointer">
+                                        Published on live public website catalog
+                                    </label>
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                                        When enabled, this course appears immediately on the live institutional homepage directory for student online registration.
+                                    </span>
+                                </div>
                                 <input
                                     type="checkbox"
                                     id="edit_is_published"
-                                    checked={editForm.data.is_published}
+                                    checked={Boolean(editForm.data.is_published)}
                                     onChange={(e) => editForm.setData('is_published', e.target.checked)}
-                                    className="h-4 w-4 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-amber-500"
+                                    className="h-5 w-5 rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-emerald-500 cursor-pointer shrink-0"
                                 />
-                                <label htmlFor="edit_is_published" className="font-bold text-slate-300">
-                                    Published on live public website catalog
-                                </label>
                             </div>
 
-                            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => setEditModal(false)}
-                                    className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:text-white"
+                                    className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:text-white hover:bg-slate-800 transition"
                                 >
                                     Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={editForm.processing}
-                                    className="py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black transition disabled:opacity-50"
-                                >
-                                    {editForm.processing ? 'Updating...' : 'Save Changes'}
-                                </button>
+                                
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        type="button"
+                                        disabled={editForm.processing}
+                                        onClick={(e) => handleUpdate(e, false)}
+                                        className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition disabled:opacity-50 text-xs border border-slate-700 cursor-pointer"
+                                        title="Save changes and keep course in draft (unpublish from website)"
+                                    >
+                                        Save as Draft
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={editForm.processing}
+                                        className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black transition disabled:opacity-50 text-xs shadow-lg shadow-amber-500/20 cursor-pointer"
+                                    >
+                                        {editForm.processing ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={editForm.processing}
+                                        onClick={(e) => handleUpdate(e, true)}
+                                        className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black transition disabled:opacity-50 text-xs flex items-center space-x-1.5 shadow-lg shadow-emerald-600/20 cursor-pointer"
+                                        title="Save changes and immediately publish live to public website"
+                                    >
+                                        <Globe className="h-4 w-4" />
+                                        <span>{editForm.processing ? 'Publishing...' : 'Save & Publish Live'}</span>
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>

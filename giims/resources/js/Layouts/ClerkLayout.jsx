@@ -16,11 +16,14 @@ import {
     Clock,
     ChevronRight,
     Search,
-    CreditCard
+    CreditCard,
+    CheckCircle2,
+    AlertCircle,
+    Award
 } from 'lucide-react';
 
 export default function ClerkLayout({ children, header }) {
-    const { auth } = usePage().props;
+    const { auth, flash = {} } = usePage().props;
     const user = auth?.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -65,6 +68,13 @@ export default function ClerkLayout({ children, header }) {
             active: route().current('clerk.fees.*'),
             icon: CreditCard,
             badge: 'Auto-Pay',
+        },
+        {
+            name: 'Official Merit Lists',
+            href: route('clerk.merit-lists.index'),
+            active: route().current('clerk.merit-lists.*'),
+            icon: Award,
+            badge: 'Gazette',
         },
     ];
 
@@ -271,6 +281,26 @@ export default function ClerkLayout({ children, header }) {
 
                     {/* Page Canvas */}
                     <main className="flex-1 bg-[#070D12]">
+                        {flash?.success && (
+                            <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+                                <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 flex items-center justify-between shadow-lg text-xs font-bold">
+                                    <div className="flex items-center space-x-2.5">
+                                        <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                                        <span>{flash.success}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {flash?.error && (
+                            <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+                                <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 flex items-center justify-between shadow-lg text-xs font-bold">
+                                    <div className="flex items-center space-x-2.5">
+                                        <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+                                        <span>{flash.error}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {children}
                     </main>
                 </div>

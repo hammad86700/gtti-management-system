@@ -413,10 +413,32 @@ class DashboardController extends Controller
                 ];
             });
 
+        // 7. Official Published Merit Lists for all students
+        $meritLists = \App\Domains\Admissions\Models\MeritList::where('status', 'published')
+            ->with(['course.trade', 'uploader'])
+            ->latest('published_at')
+            ->take(15)
+            ->get()
+            ->map(function ($ml) {
+                return [
+                    'id' => $ml->id,
+                    'title' => $ml->title,
+                    'course_id' => $ml->course_id,
+                    'course_name' => $ml->course?->name ?? 'General Course',
+                    'trade_name' => $ml->course?->trade?->name ?? 'Vocational Trade',
+                    'file_name' => $ml->file_name,
+                    'has_file' => !empty($ml->file_path),
+                    'classes_start_date' => $ml->classes_start_date?->format('d M Y'),
+                    'published_at' => $ml->published_at?->format('d M Y') ?? $ml->created_at?->format('d M Y'),
+                    'remarks' => $ml->remarks,
+                ];
+            });
+
         return Inertia::render('Student/Dashboard', [
             'userData' => $user,
             'sanction' => $sanction,
             'announcements' => $announcements,
+            'meritLists' => $meritLists,
             'onlineTests' => $onlineTests,
             'pendingTestsCount' => $pendingTestsCount,
             'assignments' => $assignments,

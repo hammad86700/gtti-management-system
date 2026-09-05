@@ -374,150 +374,169 @@ export default function Home({ activeCampaign, departments = [], publishedCourse
  {/* ════════════════════════════════════════════════════════════════
  6. TECHNICAL TRADES & DIPLOMAS DIRECTORY
  ════════════════════════════════════════════════════════════════ */}
- <section id="courses" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8">
- <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-2 border-gray-200 pb-4">
- <div>
- <span className="text-xs font-black uppercase tracking-wider text-[#00401A]">
- Academic Directory
- </span>
- <h2 className="text-2xl font-black text-gray-900 tracking-tight">
- Accredited Technical Programs & Trades
- </h2>
-        {/* Live Published Courses & Flexible Curriculum Roadmap Showcase */}
-        {publishedCourses && publishedCourses.length > 0 && (
-            <div className="space-y-6 pb-6 border-b-2 border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <div className="flex items-center space-x-2">
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
-                                Live Catalog Sync
-                            </span>
-                            <span className="text-xs text-emerald-800 font-bold flex items-center space-x-1">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span>Clerk Real-Time Synchronized</span>
-                            </span>
-                        </div>
-                        <h3 className="text-lg font-black text-gray-900 mt-1">
-                            Published Short Courses & Diplomas ({publishedCourses.length})
-                        </h3>
-                    </div>
+	<section id="courses" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8">
+		<div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-2 border-gray-200 pb-4">
+			<div>
+				<span className="text-xs font-black uppercase tracking-wider text-[#00401A]">
+					Academic Directory
+				</span>
+				<h2 className="text-2xl font-black text-gray-900 tracking-tight">
+					Accredited Technical Programs & Trades
+				</h2>
+				<p className="text-xs text-gray-600 mt-0.5">
+					Government approved vocational qualifications with morning and evening instructional shifts
+				</p>
+			</div>
 
-                    {/* Category Filter Pills */}
-                    <div className="flex flex-wrap gap-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setSelectedCategory('all')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                                selectedCategory === 'all'
-                                    ? 'bg-[#00401A] text-white shadow-sm'
-                                    : 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
-                            }`}
-                        >
-                            All Disciplines
-                        </button>
-                        {Array.from(new Set(publishedCourses.map((c) => c.category || 'General Vocational'))).map((cat) => (
-                            <button
-                                key={cat}
-                                type="button"
-                                onClick={() => setSelectedCategory(cat)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                                    selectedCategory === cat
-                                        ? 'bg-[#00401A] text-white shadow-sm'
-                                        : 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
-                                }`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+			{/* Search Input */}
+			<div className="relative w-full md:w-80">
+				<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+				<input
+					type="text"
+					placeholder="Search courses, categories, trades..."
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+					className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00401A]"
+				/>
+			</div>
+		</div>
 
-                {/* Published Course Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {publishedCourses
-                        .filter((c) => {
-                            const matchesCat = selectedCategory === 'all' || (c.category || 'General Vocational') === selectedCategory;
-                            const matchesSearch = !searchQuery ||
-                                c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()));
-                            return matchesCat && matchesSearch;
-                        })
-                        .map((course) => (
-                            <div
-                                key={course.id}
-                                className="rounded-2xl bg-white border border-gray-200 hover:border-[#00401A] p-5 shadow-xs hover:shadow-md transition flex flex-col justify-between space-y-4"
-                            >
-                                <div className="space-y-2.5">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                            {course.category || 'General Vocational'}
-                                        </span>
-                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
-                                        </span>
-                                    </div>
+		{/* Live Published Courses Showcase */}
+		{publishedCourses && publishedCourses.length > 0 && (
+			<div className="space-y-6 pb-6 border-b-2 border-gray-200">
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div>
+						<div className="flex items-center space-x-2">
+							<span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+								Live Catalog Sync
+							</span>
+							<span className="text-xs text-emerald-800 font-bold flex items-center space-x-1">
+								<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+								<span>Admission Desk Synchronized</span>
+							</span>
+						</div>
+						<h3 className="text-lg font-black text-gray-900 mt-1">
+							Active Vocational Diplomas & Courses ({publishedCourses.length})
+						</h3>
+					</div>
 
-                                    <h4 className="text-base font-black text-gray-900 leading-snug">
-                                        {course.name}
-                                    </h4>
+					{/* Category Filter Pills */}
+					<div className="flex flex-wrap gap-1.5">
+						<button
+							type="button"
+							onClick={() => setSelectedCategory('all')}
+							className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+								selectedCategory === 'all'
+									? 'bg-[#00401A] text-white shadow-sm'
+									: 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
+							}`}
+						>
+							All Disciplines
+						</button>
+						{Array.from(new Set(publishedCourses.map((c) => c.category || 'General Vocational'))).map((cat) => (
+							<button
+								key={cat}
+								type="button"
+								onClick={() => setSelectedCategory(cat)}
+								className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+									selectedCategory === cat
+										? 'bg-[#00401A] text-white shadow-sm'
+										: 'bg-white text-gray-700 hover:bg-slate-100 border border-gray-200'
+								}`}
+							>
+								{cat}
+							</button>
+						))}
+					</div>
+				</div>
 
-                                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
-                                        {course.overview_description || `Standard institutional curriculum with ${course.total_academic_days || 60} academic days of practical workshop sessions.`}
-                                    </p>
+				{/* Published Course Cards Grid */}
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+					{publishedCourses
+						.filter((c) => {
+							const matchesCat = selectedCategory === 'all' || (c.category || 'General Vocational') === selectedCategory;
+							const matchesSearch = !searchQuery ||
+								c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+								(c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+								(c.overview_description && c.overview_description.toLowerCase().includes(searchQuery.toLowerCase()));
+							return matchesCat && matchesSearch;
+						})
+						.map((course) => (
+							<div
+								key={course.id}
+								className="rounded-2xl bg-white border border-gray-200 hover:border-[#00401A] p-5 shadow-xs hover:shadow-md transition flex flex-col justify-between space-y-4"
+							>
+								<div className="space-y-2.5">
+									<div className="flex items-start justify-between gap-2">
+										<span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-200">
+											{course.category || 'General Vocational'}
+										</span>
+										<span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+											<Clock className="h-3 w-3" />
+											<span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
+										</span>
+									</div>
 
-                                    <div className="pt-2 flex flex-wrap gap-2 text-[11px] text-gray-500 font-mono">
-                                        <span>• {course.total_academic_days || 60} Days Roadmap</span>
-                                        <span>• Eligibility: <strong>{course.entry_level}</strong></span>
-                                    </div>
-                                </div>
+									<h4 className="text-base font-black text-gray-900 leading-snug">
+										{course.name}
+									</h4>
 
-                                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                                    {course.syllabus_document_path ? (
-                                        <a
-                                            href={`/storage/${course.syllabus_document_path}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center space-x-1 font-bold text-amber-700 hover:text-amber-800"
-                                        >
-                                            <FileText className="h-3.5 w-3.5" />
-                                            <span>Syllabus (PDF)</span>
-                                        </a>
-                                    ) : (
-                                        <span className="text-gray-400 font-medium">TEVTA Certified</span>
-                                    )}
+									<div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+										<span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+											course.requires_entrance_test
+												? 'bg-amber-100 text-amber-900 border border-amber-300'
+												: 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+										}`}>
+											{course.requires_entrance_test ? 'Track A: Test Required' : 'Track B: Direct FCFS'}
+										</span>
+										<span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono font-bold">
+											{course.intake_capacity ?? 50} Seats
+										</span>
+										{course.classes_start_date && (
+											<span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-mono">
+												Starts: {new Date(course.classes_start_date).toLocaleDateString('en-GB')}
+											</span>
+										)}
+									</div>
 
-                                    <Link
-                                        href={canRegister ? route('register') : '#'}
-                                        className="inline-flex items-center space-x-1 font-extrabold text-[#00401A] hover:underline"
-                                    >
-                                        <span>Apply Now</span>
-                                        <ArrowRight className="h-3.5 w-3.5" />
-                                    </Link>
-                                </div>
-                            </div>
-                        ))}
-                </div>
-            </div>
-        )}
+									<p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+										{course.overview_description || `Standard institutional curriculum with ${course.total_academic_days || 60} academic days of practical workshop sessions.`}
+									</p>
 
- <p className="text-xs text-gray-600 mt-0.5">
- Government approved vocational qualifications with morning and evening instructional shifts
- </p>
- </div>
+									<div className="pt-2 flex flex-wrap gap-2 text-[11px] text-gray-500 font-mono">
+										<span>• {course.total_academic_days || 60} Days Roadmap</span>
+										<span>• Eligibility: <strong>{course.entry_level}</strong></span>
+									</div>
+								</div>
 
- {/* Search Input */}
- <div className="relative w-full md:w-80">
- <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
- <input
- type="text"
- placeholder="Search Electrician, Welder, Machinist..."
- value={searchQuery}
- onChange={(e) => setSearchQuery(e.target.value)}
- className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00401A]"
- />
- </div>
- </div>
+								<div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+									{course.syllabus_document_path ? (
+										<a
+											href={`/storage/${course.syllabus_document_path}`}
+											target="_blank"
+											rel="noreferrer"
+											className="inline-flex items-center space-x-1 font-bold text-amber-700 hover:text-amber-800"
+										>
+											<FileText className="h-3.5 w-3.5" />
+											<span>Syllabus (PDF)</span>
+										</a>
+									) : (
+										<span className="text-gray-400 font-medium">TEVTA Certified</span>
+									)}
+
+									<Link
+										href={canRegister ? route('register') : '#'}
+										className="inline-flex items-center space-x-1 font-extrabold text-[#00401A] hover:underline"
+									>
+										<span>Apply Now</span>
+										<ArrowRight className="h-3.5 w-3.5" />
+									</Link>
+								</div>
+							</div>
+						))}
+				</div>
+			</div>
+		)}
 
  {/* Department Filter Pills */}
  <div className="flex flex-wrap gap-2">

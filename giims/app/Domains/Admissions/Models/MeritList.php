@@ -20,11 +20,32 @@ class MeritList extends Model
     protected $guarded = [];
 
     /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'classes_start_date' => 'date',
+            'published_at' => 'datetime',
+        ];
+    }
+
+    /**
      * Get the course for this merit list.
      */
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * Get the staff user who uploaded / published this merit list.
+     */
+    public function uploader(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Identity\Models\User::class, 'uploaded_by');
     }
 
     /**
@@ -41,5 +62,13 @@ class MeritList extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    /**
+     * Scope for published merit lists.
+     */
+    public function scopePublished($query)
+    {
+        return $query->where('status', 'published');
     }
 }

@@ -15,7 +15,11 @@ import {
     ChevronLeft,
     ChevronRight,
     User,
-    Award
+    Award,
+    Phone,
+    MessageCircle,
+    UploadCloud,
+    Download
 } from 'lucide-react';
 
 export default function Index({ applications = {}, courses = [], filters = {} }) {
@@ -24,6 +28,8 @@ export default function Index({ applications = {}, courses = [], filters = {} })
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
     const [rejectModal, setRejectModal] = useState(false);
     const [dossierModal, setDossierModal] = useState(false);
+    const [challanModal, setChallanModal] = useState(false);
+    const [challanTargetApp, setChallanTargetApp] = useState(null);
     const [activeApp, setActiveApp] = useState(null);
     const [verifyingId, setVerifyingId] = useState(null);
     const [confirmingId, setConfirmingId] = useState(null);
@@ -32,6 +38,30 @@ export default function Index({ applications = {}, courses = [], filters = {} })
     const rejectForm = useForm({
         clerk_remarks: '',
     });
+
+    // Custom Fee Challan Upload Form
+    const challanForm = useForm({
+        challan_file: null,
+    });
+
+    const handleOpenChallanModal = (app) => {
+        setChallanTargetApp(app);
+        setChallanModal(true);
+    };
+
+    const handleUploadChallanSubmit = (e) => {
+        e.preventDefault();
+        if (!challanTargetApp) return;
+        challanForm.post(route('clerk.applications.upload-challan', challanTargetApp.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setChallanModal(false);
+                setChallanTargetApp(null);
+                challanForm.reset();
+            },
+        });
+    };
 
     const handleFilterSubmit = (e) => {
         e.preventDefault();
@@ -141,7 +171,9 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                             >
                                 <option value="all">All Application Statuses</option>
                                 <option value="submitted">Pending Scrutiny</option>
-                                <option value="verified">Verified (Approved)</option>
+                                <option value="verified">Verified (Test / Direct)</option>
+                                <option value="selected_for_admission">Selected for Admission</option>
+                                <option value="confirmed">Confirmed & Admitted</option>
                                 <option value="rejected">Rejected (Flagged)</option>
                             </select>
                         </div>
@@ -206,11 +238,51 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                                     <div className="text-[11px] text-slate-400">
                                                         Father: {app.student_profile?.father_name || 'N/A'} • App #{app.application_number}
                                                     </div>
+                                                    {app.entrance_roll_number && (
+                                                        <div className="mt-1">
+                                                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                                Roll #{app.entrance_roll_number}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {app.student_profile?.phone_number && (
+                                                        <div className="flex items-center space-x-1.5 mt-1.5">
+                                                            <span className="text-[11px] font-mono text-slate-300">📱 {app.student_profile.phone_number}</span>
+                                                            <a
+                                                                href={`tel:${app.student_profile.phone_number}`}
+                                                                className="p-1 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/40 transition"
+                                                                title={`Call ${student?.name} (${app.student_profile.phone_number})`}
+                                                            >
+                                                                <Phone className="h-3 w-3" />
+                                                            </a>
+                                                            <a
+                                                                href={`https://wa.me/${(app.student_profile.phone_number || '').replace(/[^0-9]/g, '').replace(/^0/, '92')}?text=${encodeURIComponent(
+                                                                    `Assalam-o-Alaikum ${student?.name || 'Candidate'},\nCongratulations! You have been selected for admission in ${app.course?.name} at GTTI Rahim Yar Khan.\nClasses will commence on ${app.course?.classes_start_date ? new Date(app.course.classes_start_date).toLocaleDateString() : 'the scheduled date'}.\nPlease collect your fee challan from college or download from your student portal.`
+                                                                )}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-1 rounded-md bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/40 transition"
+                                                                title={`Send WhatsApp Admission Notice to ${student?.name}`}
+                                                            >
+                                                                <MessageCircle className="h-3 w-3" />
+                                                            </a>
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 <td className="py-3.5 px-4 font-mono">
                                                     <div className="text-amber-400 font-bold">{student?.cnic || 'N/A'}</div>
-                                                    <div className="text-[10px] text-slate-500">{student?.email}</div>
+                                                    {app.matric_obtained_marks ? (
+                                                        <div className="text-[10px] text-emerald-400 font-bold">
+                                                            Matric: {app.matric_obtained_marks}/{app.matric_total_marks || 1100} ({((app.matric_obtained_marks / (app.matric_total_marks || 1100)) * 100).toFixed(1)}%)
+                                                        </div>
+                                                    ) : app.student_profile?.matric_obtained_marks ? (
+                                                        <div className="text-[10px] text-emerald-400 font-bold">
+                                                            Matric: {app.student_profile.matric_obtained_marks}/{app.student_profile.matric_total_marks || 1100} ({((app.student_profile.matric_obtained_marks / (app.student_profile.matric_total_marks || 1100)) * 100).toFixed(1)}%)
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-[10px] text-slate-500">{student?.email}</div>
+                                                    )}
                                                 </td>
 
                                                 <td className="py-3.5 px-4">
@@ -278,6 +350,33 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                                             <CheckCircle2 className="h-3.5 w-3.5" />
                                                             <span>{confirmingId === app.id ? 'Confirming...' : 'Verify Fee & Confirm'}</span>
                                                         </button>
+                                                    )}
+
+                                                    {/* Custom Fee Challan Upload / Download */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenChallanModal(app)}
+                                                        className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl font-bold text-xs transition ${
+                                                            app.clerk_challan_path 
+                                                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' 
+                                                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                                        }`}
+                                                        title="Upload or Update Official Fee Challan for Student"
+                                                    >
+                                                        <UploadCloud className="h-3.5 w-3.5 text-amber-400" />
+                                                        <span>{app.clerk_challan_path ? 'Challan ✓' : 'Challan'}</span>
+                                                    </button>
+
+                                                    {app.clerk_challan_path && (
+                                                        <a
+                                                            href={route('clerk.applications.custom-challan', app.id)}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 transition inline-block"
+                                                            title="Download/View Uploaded Custom Challan"
+                                                        >
+                                                            <Download className="h-3.5 w-3.5" />
+                                                        </a>
                                                     )}
 
                                                     {/* View Dossier */}
@@ -410,18 +509,34 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                         </div>
 
                         {/* Candidate Details Grid */}
-                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                             <div>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase block">Father Name</span>
                                 <span className="font-bold text-white">{activeApp.student_profile?.father_name || 'N/A'}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase block">CNIC / Form B</span>
-                                <span className="font-mono text-amber-400 font-bold">{activeApp.student_profile?.user?.cnic}</span>
+                                <span className="font-mono text-amber-400 font-bold">{activeApp.student_profile?.user?.cnic || 'N/A'}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase block">Application #</span>
                                 <span className="font-mono text-slate-300">{activeApp.application_number}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Matriculation Marks</span>
+                                <span className="font-bold text-emerald-400">
+                                    {activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks 
+                                        ? `${activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks} / ${activeApp.matric_total_marks || activeApp.student_profile?.matric_total_marks || 1100} (${(((activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks) / (activeApp.matric_total_marks || activeApp.student_profile?.matric_total_marks || 1100)) * 100).toFixed(1)}%)`
+                                        : 'Not recorded'}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Intermediate Marks</span>
+                                <span className="font-bold text-amber-300">
+                                    {activeApp.intermediate_obtained_marks || activeApp.student_profile?.intermediate_obtained_marks 
+                                        ? `${activeApp.intermediate_obtained_marks || activeApp.student_profile?.intermediate_obtained_marks} / ${activeApp.intermediate_total_marks || activeApp.student_profile?.intermediate_total_marks || 1100}`
+                                        : 'N/A'}
+                                </span>
                             </div>
                             <div>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase block">Course Applied</span>
@@ -549,6 +664,74 @@ export default function Index({ applications = {}, courses = [], filters = {} })
                                 Verify Dossier
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Challan Upload Modal */}
+            {challanModal && challanTargetApp && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-7 space-y-5 shadow-2xl text-slate-100">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div className="flex items-center space-x-2 text-amber-400">
+                                <UploadCloud className="h-5 w-5" />
+                                <h3 className="text-base font-black text-white">Upload Fee Challan</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setChallanModal(false);
+                                    setChallanTargetApp(null);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1">
+                            <div>Candidate: <strong className="text-white">{challanTargetApp.student_profile?.user?.name}</strong></div>
+                            <div>Trade: <strong className="text-white">{challanTargetApp.course?.name}</strong></div>
+                            <div>App #{challanTargetApp.application_number}</div>
+                        </div>
+
+                        <form onSubmit={handleUploadChallanSubmit} className="space-y-4 text-xs">
+                            <div>
+                                <label className="block font-bold text-slate-300 mb-1.5">
+                                    Official Fee Challan Voucher Document (PDF / Image) *
+                                </label>
+                                <input
+                                    type="file"
+                                    required
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={(e) => challanForm.setData('challan_file', e.target.files[0])}
+                                    className="w-full text-xs text-slate-400 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer"
+                                />
+                                <span className="text-[10px] text-slate-500 block mt-1">
+                                    This document will appear on the candidate's student portal for download & payment.
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setChallanModal(false);
+                                        setChallanTargetApp(null);
+                                    }}
+                                    className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={challanForm.processing}
+                                    className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black uppercase tracking-wider transition disabled:opacity-50"
+                                >
+                                    {challanForm.processing ? 'Uploading Challan...' : 'Upload Fee Challan'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

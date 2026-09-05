@@ -68,9 +68,8 @@ class CourseManagementController extends Controller
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
-        $requiresTest = $request->has('requires_entrance_test')
-            ? $request->boolean('requires_entrance_test')
-            : ($validated['admission_type'] === 'merit_based');
+        $isFcfs = ($validated['admission_type'] === 'first_come_first_served');
+        $requiresTest = $isFcfs ? false : ($request->has('requires_entrance_test') ? $request->boolean('requires_entrance_test') : true);
 
         $syllabusPath = null;
         if ($request->hasFile('syllabus_document')) {
@@ -127,7 +126,7 @@ class CourseManagementController extends Controller
             'total_academic_days' => 'nullable|integer|min:1|max:500',
             'entry_level' => 'required|string|max:100',
             'admission_type' => 'required|in:merit_based,first_come_first_served',
-            'requires_entrance_test' => 'nullable|boolean',
+            'requires_entrance_test' => 'nullable',
             'intake_capacity' => 'nullable|integer|min:1|max:500',
             'classes_start_date' => 'nullable|date',
             'matric_weightage' => 'nullable|integer|min:0|max:100',
@@ -135,14 +134,13 @@ class CourseManagementController extends Controller
             'interview_weightage' => 'nullable|integer|min:0|max:100',
             'interview_max_marks' => 'nullable|integer|min:1|max:100',
             'interview_venue' => 'nullable|string|max:255',
-            'is_active' => 'boolean',
-            'is_published' => 'boolean',
+            'is_active' => 'nullable',
+            'is_published' => 'nullable',
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
-        $requiresTest = $request->has('requires_entrance_test')
-            ? $request->boolean('requires_entrance_test')
-            : ($validated['admission_type'] === 'merit_based');
+        $isFcfs = ($validated['admission_type'] === 'first_come_first_served');
+        $requiresTest = $isFcfs ? false : ($request->has('requires_entrance_test') ? $request->boolean('requires_entrance_test') : true);
 
         $syllabusPath = $course->syllabus_document_path;
         if ($request->hasFile('syllabus_document')) {
@@ -207,5 +205,26 @@ class CourseManagementController extends Controller
             ]);
 
         return redirect()->back()->with('success', "Official Admission Fee Challans generated for {$updated} selected candidate(s) of '{$course->name}'. Trainee portals unlocked for fee deposit.");
+    }
+
+    /**
+     * 1-Click quick toggle course public visibility (Published vs Draft).
+     */
+    public function togglePublish(int $id): RedirectResponse
+    {
+        $course = Course::findOrFail($id);
+        $course->is_published = !$course->is_published;
+        $course->save();
+
+        $statusText = $course->is_published ? 'Published Live on public website catalog' : 'Unpublished (Draft / Hidden from public)';
+
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($course)
+                ->log("Admission Clerk set course '{$course->name}' visibility to {$statusText}");
+        }
+
+        return redirect()->back()->with('success', "Course '{$course->name}' is now {$statusText}.");
     }
 }
