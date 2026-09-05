@@ -315,6 +315,8 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::get('/applications', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'index'])->name('applications.index');
     Route::post('/applications/{id}/verify', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'verify'])->name('applications.verify');
     Route::post('/applications/{id}/reject', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'reject'])->name('applications.reject');
+    Route::post('/applications/{id}/issue-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'issueSelectiveChallan'])->name('applications.issue-challan');
+    Route::post('/courses/{courseId}/issue-challans', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'batchIssueChallans'])->name('courses.issue-challans');
     Route::post('/applications/{id}/verify-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'verifyChallanAndConfirm'])->name('applications.verify-challan');
     Route::get('/applications/{id}/receipt', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadReceipt'])->name('applications.receipt');
     Route::get('/applications/{id}/dossier', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadDossier'])->name('applications.dossier');

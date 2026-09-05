@@ -125,9 +125,9 @@ class ApplicationController extends Controller
 
         $course = Course::findOrFail($validated['course_id']);
 
-        // Enforce maximum intake seat quota
-        if ($course->isAdmissionFull()) {
-            return redirect()->back()->with('error', "Admissions for '{$course->name}' are currently closed as the maximum capacity limit of {$course->intake_capacity} seats has been filled.");
+        // Enforce maximum intake seat quota and admission open state
+        if (!$course->is_admission_open || $course->isAdmissionFull()) {
+            return redirect()->back()->with('error', "Admissions for '{$course->name}' are currently closed as the seat quota has been filled (Quota Full / Admissions Closed).");
         }
 
         $appNumber = 'APP-' . date('Y') . '-' . strtoupper(Str::random(6));
@@ -143,7 +143,7 @@ class ApplicationController extends Controller
             'student_profile_id' => $profile->id,
             'course_id' => $course->id,
             'application_number' => $appNumber,
-            'status' => 'submitted',
+            'status' => 'pending',
             'fee_status' => 'unpaid',
             'total_marks' => $matricTotal,
             'obtained_marks' => $matricObtained,
@@ -152,19 +152,6 @@ class ApplicationController extends Controller
             'intermediate_total_marks' => $interTotal,
             'intermediate_obtained_marks' => $interObtained,
         ]);
-
-        // If FCFS direct track, immediately generate the official bank challan
-        if ($isFcfs) {
-            \App\Domains\Finance\Models\FeeChallan::create([
-                'student_profile_id' => $profile->id,
-                'application_id' => $application->id,
-                'challan_number' => 'CHL-' . date('Y') . '-' . strtoupper(Str::random(6)),
-                'challan_type' => 'admission',
-                'amount' => 2500.00,
-                'due_date' => now()->addDays(5)->format('Y-m-d'),
-                'status' => 'unpaid',
-            ]);
-        }
 
         // Securely store CNIC / B-Form document
         $cnicPath = $request->file('cnic_document')->store('private/documents', 'local');
@@ -183,7 +170,7 @@ class ApplicationController extends Controller
         ]);
 
         $message = $isFcfs
-            ? "Application submitted under First-Come, First-Served direct intake! Your fee challan is generated below. Deposit and upload your receipt immediately to secure your seat."
+            ? "Application submitted under First-Come, First-Served direct intake! Your application is under document scrutiny. Once verified by the Admission Clerk, your fee challan will be unlocked."
             : "Application submitted successfully! Your tracking application number is {$appNumber}. Awaiting scrutiny & test schedule.";
 
         return redirect('/dashboard')->with('success', $message);
@@ -197,30 +184,47 @@ class ApplicationController extends Controller
         $profile = auth()->user()->studentProfile;
         $application = Application::where('student_profile_id', $profile?->id)->findOrFail($id);
 
-        $fileKey = $request->hasFile('challan_receipt') ? 'challan_receipt' : 'receipt_document';
+        $file = $request->file('challan_receipt') ?? $request->file('receipt_document');
 
-        $validated = $request->validate([
-            $fileKey => 'required|file|mimes:pdf,jpg,jpeg,png,webp,heic,heif|max:20480',
-            'deposit_date' => 'required|date|before_or_equal:today',
+        if (!$file) {
+            return redirect()->back()->withErrors([
+                'challan_receipt' => 'Please select and upload a clear photo or PDF file of your deposited fee challan receipt.',
+            ]);
+        }
+
+        $request->validate([
+            'challan_receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,heic,heif|max:20480',
+            'receipt_document' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,heic,heif|max:20480',
+            'deposit_date' => 'nullable|date',
             'bank_reference' => 'nullable|string|max:100',
         ], [
-            "{$fileKey}.required" => 'Please upload or capture a clear photo/receipt of your deposited fee challan.',
-            "{$fileKey}.mimes" => 'The fee challan receipt must be an image (JPG, PNG, WEBP) or PDF file.',
-            "{$fileKey}.max" => 'The fee challan receipt file must not exceed 20MB.',
-            'deposit_date.required' => 'Please provide the fee deposit date as stamped on the bank counter receipt.',
-            'deposit_date.before_or_equal' => 'The deposit date cannot be a future date.',
+            'challan_receipt.mimes' => 'The fee challan receipt must be an image (JPG, PNG, WEBP) or PDF file.',
+            'challan_receipt.max' => 'The fee challan receipt file must not exceed 20MB.',
+            'receipt_document.mimes' => 'The fee challan receipt must be an image (JPG, PNG, WEBP) or PDF file.',
+            'receipt_document.max' => 'The fee challan receipt file must not exceed 20MB.',
         ]);
 
-        $receiptPath = $request->file($fileKey)->store('challan_receipts', 'public');
+        $receiptPath = $file->store('challan_receipts', 'public');
+        $depositDate = $request->input('deposit_date') ?: now()->toDateString();
+        $bankRef = $request->input('bank_reference') ?: 'Submitted at Bank';
 
         $application->update([
+            'status' => 'receipt_submitted',
             'challan_receipt_path' => $receiptPath,
-            'challan_deposit_date' => $validated['deposit_date'],
-            'challan_bank_reference' => $validated['bank_reference'] ?? null,
+            'challan_deposit_date' => $depositDate,
+            'challan_bank_reference' => $bankRef,
             'challan_uploaded_at' => now(),
             'fee_status' => 'pending_verification',
         ]);
 
-        return redirect()->back()->with('success', 'Fee challan payment receipt uploaded successfully! The Admission Clerk will verify your bank scroll and confirm your admission seat.');
+        if ($application->feeChallan) {
+            $application->feeChallan->update([
+                'receipt_image_path' => $receiptPath,
+                'verification_status' => 'under_review',
+                'submission_notes' => $bankRef,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Challan receipt submitted. Please bring the original stamped receipt to the Student Section for physical verification.');
     }
 }

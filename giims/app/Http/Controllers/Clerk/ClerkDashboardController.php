@@ -26,6 +26,12 @@ class ClerkDashboardController extends Controller
         // Applications scrutinized today
         $scrutinizedToday = Application::whereDate('scrutinized_at', today())->count();
 
+        // Applications with uploaded bank receipt awaiting clerk verification
+        $pendingFeeVerifications = Application::where(function ($q) {
+            $q->where('fee_status', 'pending_verification')
+              ->orWhereNotNull('challan_receipt_path');
+        })->where('status', '!=', 'confirmed')->count();
+
         // Recent applications awaiting scrutiny or recently updated
         $recentApplications = Application::with(['studentProfile.user', 'course'])
             ->latest('updated_at')
@@ -39,6 +45,8 @@ class ClerkDashboardController extends Controller
                     'cnic' => $app->studentProfile?->user?->cnic ?? 'N/A',
                     'course_name' => $app->course?->name ?? 'Course',
                     'status' => $app->status,
+                    'fee_status' => $app->fee_status,
+                    'has_receipt' => !empty($app->challan_receipt_path),
                     'test_date' => $app->test_date?->format('Y-m-d'),
                     'test_venue' => $app->test_venue,
                     'clerk_remarks' => $app->clerk_remarks,
@@ -58,6 +66,12 @@ class ClerkDashboardController extends Controller
             'applications as scheduled_applicants' => function ($q) {
                 $q->whereNotNull('test_date');
             },
+            'applications as pending_fee_applicants' => function ($q) {
+                $q->where(function ($sub) {
+                    $sub->where('fee_status', 'pending_verification')
+                        ->orWhereNotNull('challan_receipt_path');
+                })->where('status', '!=', 'confirmed');
+            },
         ])->get();
 
         return Inertia::render('Clerk/Dashboard', [
@@ -66,6 +80,7 @@ class ClerkDashboardController extends Controller
                 'pending_scrutiny' => $pendingScrutiny,
                 'verified_applications' => $verifiedApplications,
                 'rejected_applications' => $rejectedApplications,
+                'pending_fee_verifications' => $pendingFeeVerifications,
                 'scheduled_tests' => $scheduledTestsCount,
                 'courses_count' => $coursesCount,
                 'scrutinized_today' => $scrutinizedToday,

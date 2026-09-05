@@ -62,11 +62,48 @@ class Application extends Model
     }
 
     /**
+     * Generate permanent institutional roll number upon admission confirmation.
+     * e.g. GTTI-2026-CO-01
+     */
+    public function generateInstitutionalRollNumber(): string
+    {
+        $year = date('Y');
+        $code = strtoupper($this->course?->trade?->code ?: 'GEN');
+        $seq = str_pad((string) $this->id, 2, '0', STR_PAD_LEFT);
+        return "GTTI-{$year}-{$code}-{$seq}";
+    }
+
+    public function isPending(): bool
+    {
+        return in_array($this->status, ['pending', 'submitted']);
+    }
+
+    /**
      * Determine if this application has been verified by the clerk.
      */
     public function isVerified(): bool
     {
-        return in_array($this->status, ['verified', 'selected', 'selected_for_admission', 'waiting_list', 'confirmed']) || !is_null($this->scrutinized_at);
+        return in_array($this->status, ['verified', 'slip_issued', 'tested', 'challan_issued', 'receipt_submitted', 'admitted', 'confirmed', 'selected', 'selected_for_admission']) || !is_null($this->scrutinized_at);
+    }
+
+    public function isSlipIssued(): bool
+    {
+        return $this->status === 'slip_issued' || (!empty($this->test_date) && !empty($this->entrance_roll_number));
+    }
+
+    public function isChallanIssued(): bool
+    {
+        return in_array($this->status, ['challan_issued', 'receipt_submitted', 'admitted', 'confirmed', 'selected_for_admission']) || !empty($this->clerk_challan_path);
+    }
+
+    public function isReceiptSubmitted(): bool
+    {
+        return in_array($this->status, ['receipt_submitted', 'admitted', 'confirmed']) || !empty($this->challan_receipt_path);
+    }
+
+    public function isAdmitted(): bool
+    {
+        return in_array($this->status, ['admitted', 'confirmed']);
     }
 
     /**

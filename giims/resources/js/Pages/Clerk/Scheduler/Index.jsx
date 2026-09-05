@@ -194,7 +194,7 @@ export default function Index({ courses = [], recentSchedules = [] }) {
                                         className="py-3.5 px-8 rounded-2xl bg-gradient-to-r from-[#C1902F] via-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-xl disabled:opacity-40 flex items-center space-x-2"
                                     >
                                         <Send className="h-4 w-4" />
-                                        <span>{processing ? 'Broadcasting Notice...' : 'Broadcast Test Schedule & Call Letters'}</span>
+                                        <span>{processing ? 'Generating & Issuing Slips...' : '1-Click Generate & Issue Roll Number Slips'}</span>
                                     </button>
                                 </div>
                             </form>

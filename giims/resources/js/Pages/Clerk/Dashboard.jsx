@@ -14,11 +14,21 @@ import {
     Sparkles,
     Calendar,
     GraduationCap,
-    TrendingUp
+    TrendingUp,
+    CreditCard
 } from 'lucide-react';
 
 export default function Dashboard({ stats = {}, recentApplications = [], coursesSummary = [] }) {
     const kpis = [
+        {
+            title: 'Fee Verifications Due',
+            value: stats.pending_fee_verifications ?? 0,
+            desc: 'Paid bank slips uploaded',
+            icon: CreditCard,
+            color: 'text-amber-300 bg-amber-500/20 border-amber-500/40',
+            href: route('clerk.applications.index', { fee_status: 'pending_verification' }),
+            highlight: (stats.pending_fee_verifications ?? 0) > 0,
+        },
         {
             title: 'Pending Scrutiny',
             value: stats.pending_scrutiny ?? 0,
@@ -66,6 +76,41 @@ export default function Dashboard({ stats = {}, recentApplications = [], courses
             <Head title="Admission Clerk Dashboard - GTTI Management System" />
 
             <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+                {/* Pending Fee Verifications Urgent Banner */}
+                {(stats.pending_fee_verifications ?? 0) > 0 && (
+                    <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/20 via-slate-900 to-amber-950/40 border-2 border-amber-500/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center space-x-3.5">
+                            <div className="h-12 w-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-lg animate-pulse">
+                                <CreditCard className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <div className="flex items-center space-x-2">
+                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950">
+                                        ACTION REQUIRED
+                                    </span>
+                                    <span className="text-xs font-bold text-amber-300 font-mono">
+                                        {stats.pending_fee_verifications} Paid Challan{stats.pending_fee_verifications > 1 ? 's' : ''} Awaiting Review
+                                    </span>
+                                </div>
+                                <h3 className="text-base font-black text-white mt-1">
+                                    Applicants Have Uploaded Bank Fee Challan Slips
+                                </h3>
+                                <p className="text-xs text-slate-300">
+                                    Review deposited challan receipts, confirm admissions, and issue class induction notices.
+                                </p>
+                            </div>
+                        </div>
+
+                        <Link
+                            href={route('clerk.applications.index', { fee_status: 'pending_verification' })}
+                            className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg shrink-0"
+                        >
+                            <span>Verify Paid Slips Now</span>
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                )}
+
                 {/* Hero Header */}
                 <div className="rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/30 border border-slate-800 p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="space-y-2 max-w-2xl">
@@ -100,14 +145,16 @@ export default function Dashboard({ stats = {}, recentApplications = [], courses
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {kpis.map((kpi, idx) => {
                         const Icon = kpi.icon;
                         return (
                             <Link
                                 key={idx}
                                 href={kpi.href}
-                                className="p-5 rounded-3xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition space-y-3 block group"
+                                className={`p-5 rounded-3xl bg-slate-900 border transition space-y-3 block group ${
+                                    kpi.highlight ? 'border-amber-500/60 ring-2 ring-amber-500/20 bg-amber-950/10' : 'border-slate-800 hover:border-slate-700'
+                                }`}
                             >
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">

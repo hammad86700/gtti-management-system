@@ -413,26 +413,65 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 7. Official Published Merit Lists for all students
-        $meritLists = \App\Domains\Admissions\Models\MeritList::where('status', 'published')
-            ->with(['course.trade', 'uploader'])
-            ->latest('published_at')
-            ->take(15)
-            ->get()
-            ->map(function ($ml) {
-                return [
-                    'id' => $ml->id,
-                    'title' => $ml->title,
-                    'course_id' => $ml->course_id,
-                    'course_name' => $ml->course?->name ?? 'General Course',
-                    'trade_name' => $ml->course?->trade?->name ?? 'Vocational Trade',
-                    'file_name' => $ml->file_name,
-                    'has_file' => !empty($ml->file_path),
-                    'classes_start_date' => $ml->classes_start_date?->format('d M Y'),
-                    'published_at' => $ml->published_at?->format('d M Y') ?? $ml->created_at?->format('d M Y'),
-                    'remarks' => $ml->remarks,
-                ];
-            });
+        // 7. Official Published Merit Lists (Strictly Scoped by Admission Track)
+        $latestApp = $profile?->applications()->latest()->first();
+        $isAdmittedStudent = (bool) ($activeEnrollment && $activeEnrollment->is_lms_active);
+        $meritLists = collect();
+
+        if (!$isAdmittedStudent) {
+            if ($latestApp && $latestApp->course) {
+                // If applicant applied to an FCFS course, merit lists are not applicable
+                if ($latestApp->course->isMeritBased()) {
+                    $meritLists = \App\Domains\Admissions\Models\MeritList::where(function ($q) {
+                            $q->where('status', 'published')
+                              ->orWhere('is_publicly_visible', true);
+                        })
+                        ->where('course_id', $latestApp->course_id)
+                        ->with(['course.trade', 'uploader'])
+                        ->latest('published_at')
+                        ->take(5)
+                        ->get()
+                        ->map(function ($ml) {
+                            return [
+                                'id' => $ml->id,
+                                'title' => $ml->title,
+                                'course_id' => $ml->course_id,
+                                'course_name' => $ml->course?->name ?? 'Course',
+                                'trade_name' => $ml->course?->trade?->name ?? 'Vocational Trade',
+                                'file_name' => $ml->file_name,
+                                'has_file' => !empty($ml->file_path),
+                                'classes_start_date' => $ml->classes_start_date?->format('d M Y'),
+                                'published_at' => $ml->published_at?->format('d M Y') ?? $ml->created_at?->format('d M Y'),
+                                'remarks' => $ml->remarks,
+                            ];
+                        });
+                }
+            } else {
+                // Unapplied exploring students: can view public published merit lists
+                $meritLists = \App\Domains\Admissions\Models\MeritList::where(function ($q) {
+                        $q->where('status', 'published')
+                          ->orWhere('is_publicly_visible', true);
+                    })
+                    ->with(['course.trade', 'uploader'])
+                    ->latest('published_at')
+                    ->take(10)
+                    ->get()
+                    ->map(function ($ml) {
+                        return [
+                            'id' => $ml->id,
+                            'title' => $ml->title,
+                            'course_id' => $ml->course_id,
+                            'course_name' => $ml->course?->name ?? 'General Course',
+                            'trade_name' => $ml->course?->trade?->name ?? 'Vocational Trade',
+                            'file_name' => $ml->file_name,
+                            'has_file' => !empty($ml->file_path),
+                            'classes_start_date' => $ml->classes_start_date?->format('d M Y'),
+                            'published_at' => $ml->published_at?->format('d M Y') ?? $ml->created_at?->format('d M Y'),
+                            'remarks' => $ml->remarks,
+                        ];
+                    });
+            }
+        }
 
         return Inertia::render('Student/Dashboard', [
             'userData' => $user,

@@ -78,6 +78,7 @@ class MeritListController extends Controller
             'uploaded_by' => auth()->id(),
             'remarks' => $validated['remarks'],
             'status' => $validated['status'],
+            'is_publicly_visible' => $validated['status'] === 'published',
             'published_at' => $validated['status'] === 'published' ? now() : null,
         ]);
 
@@ -129,6 +130,7 @@ class MeritListController extends Controller
 
         $meritList->update([
             'status' => $newStatus,
+            'is_publicly_visible' => $newStatus === 'published',
             'published_at' => $newStatus === 'published' ? now() : null,
         ]);
 

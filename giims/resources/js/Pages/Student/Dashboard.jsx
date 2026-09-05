@@ -40,7 +40,8 @@ import {
     Upload,
     Download,
     CreditCard,
-    Printer
+    Printer,
+    XCircle
 } from 'lucide-react';
 import KpiCard from '@/Components/UI/KpiCard';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/UI/Card';
@@ -68,7 +69,15 @@ export default function Dashboard({
     const enrollments = profile?.enrollments || [];
     const applications = profile?.applications || [];
 
-    const isEnrolled = enrollments.length > 0;
+    const latestEnrollment = enrollments[0];
+    const latestApplication = applications[0];
+
+    // Strict contextual admission gate: Trainee is admitted ONLY when their application status is 'admitted' or 'confirmed'
+    // AND their LMS enrollment is active. Otherwise, they are in the pre-admission applicant lifecycle.
+    const isAdmitted = Boolean(latestEnrollment?.is_lms_active) && (
+        latestApplication ? (latestApplication.status === 'admitted' || latestApplication.status === 'confirmed') : true
+    );
+    const isEnrolled = isAdmitted;
     const hasApplied = applications.length > 0;
     const isProfileComplete = Boolean(
         profile?.father_name &&
@@ -77,9 +86,6 @@ export default function Dashboard({
         profile?.domicile_district &&
         profile?.address
     );
-
-    const latestEnrollment = enrollments[0];
-    const latestApplication = applications[0];
 
     // Filter notices: all, admin, teacher
     const [noticeFilter, setNoticeFilter] = useState('all');
@@ -120,7 +126,8 @@ export default function Dashboard({
         setPinError('');
     };
 
-    // Direct FCFS Challan Receipt Upload Form
+    // Direct FCFS / Merit Challan Receipt Upload Form
+    const [showReuploadForm, setShowReuploadForm] = useState(false);
     const uploadChallanForm = useForm({
         challan_receipt: null,
         bank_reference: '',
@@ -134,6 +141,7 @@ export default function Dashboard({
             preserveScroll: true,
             onSuccess: () => {
                 uploadChallanForm.reset();
+                setShowReuploadForm(false);
             },
         });
     };
@@ -493,18 +501,6 @@ export default function Dashboard({
                                         <Monitor className="h-3.5 w-3.5" />
                                         <span>{pendingTestsCount} CBT Test Due</span>
                                     </Link>
-                                )}
-                                {latestEnrollment && (
-                                    <a
-                                        href={route('admit-card.print', { enrollmentId: latestEnrollment.id })}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-xs"
-                                        title="Print Official PBTE Examination Admit Card / Roll Number Slip"
-                                    >
-                                        <Printer className="h-3.5 w-3.5 text-govt-green-600" />
-                                        <span>Roll No Slip</span>
-                                    </a>
                                 )}
                                 <Link
                                     href={route('student.apprenticeship.index')}
@@ -1635,502 +1631,500 @@ export default function Dashboard({
                 {/* ════════════════════════════════════════════════════════════════
                     CONDITION 2: APPLIED CANDIDATE (AWAITING SELECTION / MERIT)
                 ════════════════════════════════════════════════════════════════ */}
-                {!isEnrolled && hasApplied && (
-                    <div className="space-y-6">
-                        {/* Application Status Banner */}
-                        <div className="rounded-xl bg-gradient-to-r from-govt-green via-govt-green-600 to-[#002B12] p-5 sm:p-6 text-white shadow-sm border border-govt-green-700/60 space-y-4">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="space-y-1.5 max-w-2xl">
-                                    <div className="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-md bg-white/10 text-emerald-200 border border-white/15 text-xs font-semibold">
-                                        <Clock className="h-3.5 w-3.5" />
-                                        <span>Admission Lifecycle in Progress</span>
-                                    </div>
-                                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                                        Application Under Review: {latestApplication?.application_number}
-                                    </h2>
-                                    <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                                        Your admission application for <strong className="text-white font-bold">{latestApplication?.course?.name}</strong> has been received by GTTI Rahim Yar Khan.
-                                    </p>
-                                </div>
+                {!isAdmitted && hasApplied && (() => {
+                    const course = latestApplication?.course;
+                    const isMerit = course?.requires_entrance_test === true || course?.admission_type === 'merit_based';
+                    const isFcfs = !isMerit;
+                    const status = latestApplication?.status || 'pending';
+                    const hasClerkChallan = Boolean(latestApplication?.clerk_challan_path);
+                    const hasReceipt = Boolean(latestApplication?.challan_receipt_path);
+                    const isReceiptSubmitted = status === 'receipt_submitted' || (hasReceipt && status !== 'admitted' && status !== 'confirmed');
+                    const isWaiting = isMerit && (status === 'waiting_list' || latestApplication?.entrance_test_attempt?.selection_status === 'waiting');
+                    const isSelectedMerit = isMerit && (
+                        status === 'challan_issued' ||
+                        status === 'selected' ||
+                        status === 'selected_for_admission' ||
+                        latestApplication?.entrance_test_attempt?.selection_status === 'selected' ||
+                        hasClerkChallan
+                    );
+                    const isSlipIssued = isMerit && !isSelectedMerit && !isWaiting && (
+                        status === 'slip_issued' ||
+                        status === 'verified' ||
+                        Boolean(latestApplication?.entrance_roll_number)
+                    );
+                    const isRejected = status === 'rejected';
+                    const isFcfsChallanIssued = isFcfs && (
+                        status === 'challan_issued' ||
+                        status === 'verified' ||
+                        Boolean(latestApplication?.fee_challan) ||
+                        hasClerkChallan
+                    );
+                    const isPendingScrutiny = !isRejected && !isReceiptSubmitted && !isWaiting && !isSelectedMerit && !isSlipIssued && !isFcfsChallanIssued;
 
-                                <div className="p-3.5 rounded-xl bg-white/10 border border-white/15 text-center shrink-0">
-                                    <p className="text-[10px] text-emerald-200 uppercase font-bold">Current Decision</p>
-                                    <span className="inline-block mt-1">
-                                        <Badge variant={getStatusBadgeVariant(latestApplication?.status)} size="sm">
-                                            {latestApplication?.clerk_challan_path && latestApplication?.status === 'verified'
-                                                ? 'SELECTED / CHALLAN ISSUED'
-                                                : latestApplication?.status?.toUpperCase()}
-                                        </Badge>
-                                    </span>
-                                </div>
-                            </div>
+                    const courseClassesStart = course?.classes_start_date ? new Date(course.classes_start_date) : new Date('2026-09-16');
+                    const challanDueDate = latestApplication?.fee_challan?.payment_deadline || latestApplication?.fee_challan?.due_date 
+                        ? new Date(latestApplication.fee_challan.payment_deadline || latestApplication.fee_challan.due_date)
+                        : new Date(new Date(courseClassesStart).setDate(courseClassesStart.getDate() - 1));
+                    const formattedDueDate = challanDueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const formattedClassesDate = courseClassesStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const feeAmount = latestApplication?.fee_challan?.total_amount || latestApplication?.fee_challan?.amount || 3500;
+                    const remainingSeats = course?.remaining_seats ?? 25;
+                    const totalSeats = course?.capacity ?? course?.intake_capacity ?? 50;
 
-                            {(latestApplication?.status === 'selected' || latestApplication?.status === 'selected_for_admission' || latestApplication?.entrance_test_attempt?.selection_status === 'selected' || Boolean(latestApplication?.clerk_challan_path)) && (() => {
-                                const courseClassesStart = latestApplication.course?.classes_start_date ? new Date(latestApplication.course.classes_start_date) : new Date('2026-09-16');
-                                const challanDueDate = latestApplication.fee_challan?.due_date 
-                                    ? new Date(latestApplication.fee_challan.due_date)
-                                    : new Date(new Date(courseClassesStart).setDate(courseClassesStart.getDate() - 1));
-                                const formattedDueDate = challanDueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                                const formattedClassesDate = courseClassesStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                                const feeAmount = latestApplication.fee_challan?.amount || latestApplication.fee_challan?.total_amount || 3500;
+                    // Merit list helper for this course (strictly scoped to this applied merit course)
+                    const courseMeritLists = isMerit 
+                        ? (meritLists || []).filter((ml) => ml.course_id === latestApplication?.course_id)
+                        : [];
+                    const myTradeMeritList = courseMeritLists[0] || null;
 
-                                return (
-                                    <div className="p-5 rounded-2xl bg-white/15 border border-white/25 text-xs space-y-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                            <div className="flex items-start space-x-3">
-                                                <CheckCircle2 className="h-6 w-6 text-amber-300 shrink-0 mt-0.5" />
-                                                <div className="space-y-1">
-                                                    <p className="font-black text-base text-white">Congratulations! You are Selected for Admission.</p>
-                                                    <p className="text-xs text-emerald-100 leading-relaxed">
-                                                        You have qualified the merit benchmark for <strong>{latestApplication.course?.name}</strong>. Your official admission fee voucher has been issued.
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-wrap items-center gap-2 shrink-0 no-print">
-                                                {latestApplication.clerk_challan_path && (
-                                                    <a
-                                                        href={route('applications.challan-document', latestApplication.id)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md inline-flex items-center space-x-1.5"
-                                                    >
-                                                        <Download className="h-4 w-4" />
-                                                        <span>Download Stamped Challan (PDF)</span>
-                                                    </a>
-                                                )}
-                                                <a
-                                                    href={route('applications.print-challan', latestApplication.id)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="px-4 py-2.5 rounded-xl bg-slate-950/90 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider transition shadow-md inline-flex items-center space-x-2"
-                                                >
-                                                    <Printer className="h-4 w-4 text-amber-400" />
-                                                    <span>Print 3-Copy Voucher</span>
-                                                </a>
-                                            </div>
+                    return (
+                        <div className="space-y-6">
+                            {/* CASE 7: APPLICATION REJECTED */}
+                            {isRejected && (
+                                <div className="rounded-3xl p-6 sm:p-8 bg-rose-50 border-2 border-rose-300 shadow-sm space-y-4 text-rose-950">
+                                    <div className="flex items-start space-x-4">
+                                        <div className="h-12 w-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black shrink-0 shadow-md">
+                                            <XCircle className="h-6 w-6" />
                                         </div>
-
-                                        {/* High-Visibility Notice Strip */}
-                                        <div className="pt-3 border-t border-white/20 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                            <div className="bg-red-500/30 border border-red-400/50 p-2.5 rounded-xl text-white flex items-center space-x-2.5">
-                                                <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 animate-pulse" />
-                                                <div>
-                                                    <span className="text-[10px] uppercase font-bold text-amber-200 block">LAST DATE TO PAY CHALLAN</span>
-                                                    <span className="font-black text-sm text-white">{formattedDueDate}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white/10 border border-white/20 p-2.5 rounded-xl text-white flex items-center space-x-2.5">
-                                                <CreditCard className="h-5 w-5 text-emerald-300 shrink-0" />
-                                                <div>
-                                                    <span className="text-[10px] uppercase font-bold text-emerald-200 block">TOTAL PAYABLE AMOUNT</span>
-                                                    <span className="font-black text-sm text-white font-mono">PKR {Number(feeAmount).toLocaleString()}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white/10 border border-white/20 p-2.5 rounded-xl text-white flex items-center space-x-2.5">
-                                                <Calendar className="h-5 w-5 text-blue-300 shrink-0" />
-                                                <div>
-                                                    <span className="text-[10px] uppercase font-bold text-blue-200 block">CLASSES COMMENCE</span>
-                                                    <span className="font-black text-sm text-white">{formattedClassesDate}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-
-                            {(latestApplication?.status === 'waiting_list' || latestApplication?.entrance_test_attempt?.selection_status === 'waiting') && (
-                                <div className="p-4 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xs flex items-center space-x-3">
-                                    <Clock className="h-6 w-6 text-amber-300 shrink-0" />
-                                    <div className="space-y-0.5">
-                                        <p className="font-bold text-sm text-white">
-                                            Admission Status: On Merit Waiting List
-                                            {latestApplication.entrance_test_attempt?.merit_rank && (
-                                                <span className="ml-2 font-mono text-amber-300">
-                                                    (Position #{latestApplication.entrance_test_attempt?.merit_rank})
+                                        <div className="space-y-1 flex-1">
+                                            <div className="flex items-center space-x-2">
+                                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-200 text-rose-900 border border-rose-300 tracking-wider">
+                                                    APPLICATION NOT APPROVED
                                                 </span>
-                                            )}
+                                                <span className="text-xs font-mono font-bold text-rose-800">
+                                                    Ref: {latestApplication?.application_number}
+                                                </span>
+                                            </div>
+                                            <h3 className="font-black text-xl text-rose-950">
+                                                Application Status: Scrutiny Declined
+                                            </h3>
+                                            <p className="text-xs text-rose-900 leading-relaxed">
+                                                Your admission application for <strong>{course?.name}</strong> could not be approved by the Admission Scrutiny Committee.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Recorded Clerk Remarks */}
+                                    <div className="p-4 rounded-2xl bg-white/90 border border-rose-300 space-y-1.5">
+                                        <div className="flex items-center space-x-2 text-rose-900 font-bold text-xs">
+                                            <AlertTriangle className="h-4 w-4 text-rose-600" />
+                                            <span>Clerk Remarks & Reason:</span>
+                                        </div>
+                                        <p className="text-xs text-rose-950 pl-6 leading-relaxed">
+                                            {latestApplication?.clerk_remarks || 'Your submitted academic credentials or certificates did not meet the mandatory criteria prescribed by TEVTA regulations.'}
                                         </p>
-                                        <p className="text-[11px] text-emerald-100">
-                                            You have passed the entrance examination and are currently on the waiting list. If any selected candidates fail to submit their fee within 3 days, your seat will be automatically promoted.
+                                    </div>
+
+                                    <div className="p-4 rounded-2xl bg-rose-100/50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between">
+                                        <p className="text-[11px]">
+                                            To retrieve your original submitted documents or lodge a review appeal, please visit the GTTI Student Section in person.
                                         </p>
+                                        <Link
+                                            href={route('student.profile.edit')}
+                                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition shrink-0"
+                                        >
+                                            View Submitted Profile
+                                        </Link>
                                     </div>
                                 </div>
                             )}
-                        </div>
 
-                        {/* Official Published Merit Lists Desk (Visible to all students) */}
-                        <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-slate-200 shadow-sm space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                                <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-govt-green flex items-center justify-center font-bold">
-                                        <Award className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center space-x-2">
-                                            <h3 className="font-black text-slate-900 text-base">Official Institutional Merit Lists</h3>
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
-                                                Admission Office
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-slate-500">
-                                            Official merit lists and selection notices published by the College Admission Desk.
-                                        </p>
-                                    </div>
-                                </div>
-                                {meritLists && meritLists.length > 0 && (
-                                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                                        {meritLists.length} Published List{meritLists.length > 1 ? 's' : ''}
-                                    </span>
-                                )}
-                            </div>
-
-                            {(!meritLists || meritLists.length === 0) ? (
-                                <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center space-y-1.5">
-                                    <Clock className="h-6 w-6 text-slate-400 mx-auto" />
-                                    <p className="font-bold text-slate-700 text-xs">No Official Merit Lists Published Yet</p>
-                                    <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                                        Once entrance screening tests are evaluated, the admission desk will publish the official selection lists and class commencement schedules here for all applicants to view and download.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                                    {meritLists.map((list) => {
-                                        const isMyTrade = latestApplication?.course_id === list.course_id;
-                                        return (
-                                            <div 
-                                                key={list.id} 
-                                                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
-                                                    isMyTrade 
-                                                        ? 'bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-500/20' 
-                                                        : 'bg-white border-slate-200 hover:border-slate-300'
-                                                }`}
-                                            >
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700">
-                                                            {list.course?.name || 'General Merit List'}
-                                                        </span>
-                                                        {isMyTrade && (
-                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white animate-pulse">
-                                                                Your Applied Trade
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <h4 className="font-black text-slate-900 text-sm leading-snug">{list.title}</h4>
-                                                    {list.classes_start_date && (
-                                                        <p className="text-xs text-emerald-800 font-semibold flex items-center space-x-1.5">
-                                                            <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                                                            <span>Classes Start: <strong>{new Date(list.classes_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
-                                                        </p>
-                                                    )}
-                                                    {list.remarks && (
-                                                        <p className="text-[11px] text-slate-500 line-clamp-2">{list.remarks}</p>
-                                                    )}
-                                                </div>
-
-                                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                                                    <span className="text-[10px] font-mono text-slate-400">
-                                                        {list.published_at ? new Date(list.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Official'}
-                                                    </span>
-                                                    <a
-                                                        href={route('clerk.merit-lists.download', list.id)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition shadow-sm"
-                                                    >
-                                                        <Download className="h-3.5 w-3.5" />
-                                                        <span>Download List</span>
-                                                    </a>
-                                                </div>
+                            {/* CASE 6: STAMPED RECEIPT SUBMITTED (AWAITING PHYSICAL / FINAL VERIFICATION) */}
+                            {!isRejected && isReceiptSubmitted && (
+                                <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 border-2 border-blue-300 shadow-md space-y-6 text-blue-950">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-blue-200 pb-5">
+                                        <div className="flex items-start space-x-3.5">
+                                            <div className="h-12 w-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shrink-0 shadow-md">
+                                                <Clock className="h-6 w-6 animate-spin" />
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Admission Track Workflow & Entrance Test Roll No Slip / Challan */}
-                        {latestApplication && (() => {
-                            const course = latestApplication.course;
-                            const requiresEntranceTest = course?.requires_entrance_test === true || course?.admission_type === 'merit_based';
-                            const hasClerkChallan = Boolean(latestApplication.clerk_challan_path);
-                            const isVerified = latestApplication.verification_status === 'verified' || latestApplication.status === 'verified' || Boolean(latestApplication.entrance_roll_number);
-                            const isSelected = latestApplication.status === 'selected' || latestApplication.status === 'selected_for_admission' || latestApplication.status === 'confirmed' || latestApplication.entrance_test_attempt?.selection_status === 'selected' || hasClerkChallan;
-                            const isConfirmed = latestApplication.status === 'confirmed' || latestApplication.fee_status === 'paid';
-                            const attempt = latestApplication.entrance_test_attempt;
-                            const exam = attempt?.entrance_exam;
-
-                            {/* ── TRACK 1: NO TEST REQUIRED (DIRECT / FCFS TRACK) ── */}
-                            if (!requiresEntranceTest) {
-                                const isFull = course?.is_admission_full;
-                                const remainingSeats = course?.remaining_seats ?? 25;
-                                const totalSeats = course?.intake_capacity ?? 50;
-
-                                return (
-                                    <div className="space-y-5">
-                                        {/* Urgency Quota Alert */}
-                                        <div className="rounded-2xl p-5 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                                            <div className="flex items-start space-x-3.5">
-                                                <div className="h-10 w-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 font-black shadow-md">
-                                                    <AlertTriangle className="h-5 w-5" />
-                                                </div>
-                                                <div className="space-y-0.5">
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-slate-950">
-                                                            DIRECT ADMISSION TRACK (NO TEST REQUIRED)
-                                                        </span>
-                                                        <span className="text-xs font-mono font-bold text-amber-900">
-                                                            FCFS Quota
-                                                        </span>
-                                                    </div>
-                                                    <h3 className="font-black text-base text-amber-950">
-                                                        Pay Bank Challan Promptly to Lock Your Seat!
-                                                    </h3>
-                                                    <p className="text-xs text-amber-900/90 leading-relaxed">
-                                                        Admissions for <strong>{course?.name}</strong> are processed directly without an entrance test. Seats are allocated upon verified fee deposit. 
-                                                        {isFull ? (
-                                                            <span className="font-bold text-rose-700 ml-1">🔴 Admissions are currently full.</span>
-                                                        ) : (
-                                                            <span className="font-bold text-amber-950 ml-1 underline">Only {remainingSeats} of {totalSeats} seats remaining!</span>
-                                                        )}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right shrink-0 bg-white/70 p-3 rounded-xl border border-amber-200">
-                                                <span className="text-2xl font-black font-mono text-amber-900 block">
-                                                    {remainingSeats} / {totalSeats}
-                                                </span>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                                                    Available Seats
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Direct Fee Challan & Receipt Upload Card */}
-                                        <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-slate-200 shadow-xl space-y-5 print-card">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                            OFFICIAL ADMISSION FEE CHALLAN
-                                                        </span>
-                                                        <span className="text-xs font-mono font-bold text-slate-700">
-                                                            Challan #{latestApplication.fee_challan?.challan_number || `FCFS-${latestApplication.application_number}`}
-                                                        </span>
-                                                    </div>
-                                                    <h3 className="text-lg font-black text-slate-900">
-                                                        Admission Fee Voucher: {course?.name}
-                                                    </h3>
-                                                    <p className="text-xs text-slate-500">
-                                                        Payable at any online branch of National Bank of Pakistan (NBP), Bank of Punjab (BOP), or GTTI Accounts Counter.
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex items-center space-x-3 shrink-0">
-                                                    <div className="text-right">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Fee Amount</span>
-                                                        <span className="text-xl font-black font-mono text-govt-green">
-                                                            PKR {latestApplication.fee_challan?.total_amount || 3500}
-                                                        </span>
-                                                    </div>
-                                                    
-                                                    {latestApplication.clerk_challan_path && (
-                                                        <a
-                                                            href={route('applications.challan-document', latestApplication.id)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-1.5 no-print"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                            <span>Download Stamped Challan</span>
-                                                        </a>
-                                                    )}
-
-                                                    <a
-                                                        href={route('applications.print-challan', latestApplication.id)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-2 no-print"
-                                                    >
-                                                        <Printer className="h-4 w-4 text-amber-400" />
-                                                        <span>Print 3-Copy Voucher</span>
-                                                    </a>
-                                                </div>
-                                            </div>
-
-                                            {/* Confirmation state */}
-                                            {isConfirmed ? (
-                                                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
-                                                    <div className="flex items-center space-x-2 text-emerald-800 font-black text-sm">
-                                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                                                        <span>CONGRATULATIONS! ADMISSION OFFICIALLY CONFIRMED</span>
-                                                    </div>
-                                                    <p className="text-xs text-emerald-900 leading-relaxed">
-                                                        Your bank fee payment has been verified by the Admission Clerk. You are enrolled in <strong>{course?.name}</strong>.
-                                                    </p>
-                                                    {course?.classes_start_date && (
-                                                        <div className="p-3.5 rounded-xl bg-white border border-emerald-200 inline-flex items-center space-x-3 shadow-xs">
-                                                            <Calendar className="h-5 w-5 text-govt-green" />
-                                                            <div>
-                                                                <span className="text-[10px] font-bold text-slate-500 uppercase block">Classes Commencement Date</span>
-                                                                <span className="font-bold text-slate-900 text-xs font-mono">
-                                                                    {new Date(course.classes_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    <div className="p-3 rounded-xl bg-emerald-100/70 border border-emerald-300 text-xs text-emerald-950 space-y-1">
-                                                        <span className="font-black block uppercase text-[10px] tracking-wider text-emerald-900">
-                                                            Classroom Orientation & Portal Activation Notice
-                                                        </span>
-                                                        <p className="text-[11px] text-emerald-900/90 leading-relaxed">
-                                                            As per institutional procedure, your complete student coursework and LMS modules will be <strong>manually activated by your assigned Class Teacher</strong> during your initial classroom orientation.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ) : latestApplication.challan_receipt_path ? (
-                                                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2">
-                                                    <div className="flex items-center space-x-2 text-blue-800 font-bold text-sm">
-                                                        <Clock className="h-5 w-5 text-blue-600 animate-spin" />
-                                                        <span>Paid Bank Deposit Slip Under Clerical Verification</span>
-                                                    </div>
-                                                    <p className="text-xs text-blue-800/90 leading-relaxed">
-                                                        You uploaded bank reference: <strong>{latestApplication.challan_bank_reference || 'Submitted'}</strong> on {latestApplication.challan_deposit_date ? new Date(latestApplication.challan_deposit_date).toLocaleDateString() : 'recent'}. The Admission Clerk is scrutinizing the payment slip to finalize your seat quota.
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                /* Upload Bank Deposit Slip Form */
-                                                <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 no-print">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
-                                                            <Upload className="h-4 w-4 text-amber-500" />
-                                                            <span>Upload Paid Bank Receipt / Deposit Slip</span>
-                                                        </h4>
-                                                        <span className="text-[10px] text-slate-500 font-medium">Required to finalize admission</span>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
-                                                            <input
-                                                                type="file"
-                                                                required
-                                                                accept=".jpg,.jpeg,.png,.pdf"
-                                                                onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
-                                                                className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
-                                                            <input
-                                                                type="text"
-                                                                required
-                                                                placeholder="e.g. NBP Main Branch / Scroll #982"
-                                                                value={uploadChallanForm.data.bank_reference}
-                                                                onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
-                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
-                                                            <input
-                                                                type="date"
-                                                                required
-                                                                value={uploadChallanForm.data.deposit_date}
-                                                                onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
-                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                                                        <p className="text-[11px] text-slate-500">
-                                                            Deposit your fee at any NBP counter and upload the stamped customer copy here.
-                                                        </p>
-                                                        <button
-                                                            type="submit"
-                                                            disabled={uploadChallanForm.processing}
-                                                            className="px-5 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition disabled:opacity-50"
-                                                        >
-                                                            {uploadChallanForm.processing ? 'Uploading Slip...' : 'Submit Deposit Slip'}
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            {/* ── TRACK 2: ENTRANCE TEST REQUIRED (MERIT-BASED TRACK) ── */}
-
-                            {/* SUBCASE 2A: APPLICATION NOT VERIFIED BY CLERK YET */}
-                            if (!isVerified && !hasClerkChallan) {
-                                return (
-                                    <div className="rounded-3xl p-6 sm:p-7 bg-amber-50/80 border-2 border-amber-300 shadow-sm space-y-4 text-amber-950">
-                                        <div className="flex items-start space-x-4">
-                                            <div className="h-12 w-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
-                                                <Clock className="h-6 w-6 animate-pulse" />
-                                            </div>
-                                            <div className="space-y-1 flex-1">
+                                            <div className="space-y-1">
                                                 <div className="flex items-center space-x-2">
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 text-amber-900 border border-amber-300 tracking-wider">
-                                                        ENTRANCE TEST REQUIRED
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-200 text-blue-900 border border-blue-300 tracking-wider">
+                                                        ⚡ PAID RECEIPT SUBMITTED
                                                     </span>
-                                                    <span className="text-xs font-mono font-bold text-amber-800">
-                                                        Verification In Progress
+                                                    <span className="text-xs font-mono font-bold text-blue-800">
+                                                        Awaiting Clerical Scrutiny
                                                     </span>
                                                 </div>
-                                                <h3 className="font-black text-lg text-amber-950">
-                                                    Application Submitted — Awaiting Clerical Document Verification
+                                                <h3 className="font-black text-xl text-blue-950">
+                                                    Bank Deposit Receipt Submitted
                                                 </h3>
-                                                <p className="text-xs text-amber-900 leading-relaxed">
-                                                    Your application for <strong>{course?.name}</strong> has been submitted. The Admission Clerk is currently scrutinizing your submitted academic documents and certificates.
+                                                <p className="text-xs text-blue-900">
+                                                    Application #{latestApplication?.application_number} • Applied Trade: <strong>{course?.name}</strong>
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div className="p-4 rounded-2xl bg-white/90 border border-amber-300 space-y-2">
-                                            <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
-                                                <AlertCircle className="h-4 w-4 text-amber-600" />
-                                                <span className="uppercase tracking-wider">Entrance Test Roll No Slip Notice</span>
+                                        <div className="flex items-center space-x-2 shrink-0">
+                                            {latestApplication?.challan_receipt_path && (
+                                                <a
+                                                    href={'/storage/' + latestApplication.challan_receipt_path}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition shadow-sm"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    <span>View Uploaded Slip</span>
+                                                </a>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowReuploadForm(!showReuploadForm)}
+                                                className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs transition shadow-sm cursor-pointer"
+                                            >
+                                                <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+                                                <span>{showReuploadForm ? 'Cancel' : 'Update Slip'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Prominent Directive Notice */}
+                                    <div className="p-5 rounded-2xl bg-white border-2 border-blue-400 text-xs space-y-2 shadow-xs">
+                                        <div className="flex items-center space-x-2 text-blue-900 font-black text-sm">
+                                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0" />
+                                            <span>Important Admission Finalization Notice:</span>
+                                        </div>
+                                        <p className="text-xs text-slate-700 font-medium pl-7 leading-relaxed">
+                                            Challan receipt submitted. Please bring the original stamped receipt to the Student Section for physical verification and biometric enrollment.
+                                        </p>
+                                    </div>
+
+                                    {/* Submission Metadata */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                                        <div className="p-3.5 rounded-xl bg-white/80 border border-blue-200 space-y-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-blue-600 block">Bank Reference / Branch</span>
+                                            <span className="font-bold text-slate-900">{latestApplication?.challan_bank_reference || 'Submitted via Portal'}</span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-white/80 border border-blue-200 space-y-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-blue-600 block">Deposit Date</span>
+                                            <span className="font-bold text-slate-900 font-mono">
+                                                {latestApplication?.challan_deposit_date ? new Date(latestApplication.challan_deposit_date).toLocaleDateString('en-GB') : 'Recent'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-white/80 border border-blue-200 space-y-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-blue-600 block">Fee Voucher Amount</span>
+                                            <span className="font-bold text-slate-900 font-mono">PKR {Number(feeAmount).toLocaleString()}</span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-white/80 border border-blue-200 space-y-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-blue-600 block">Classes Commence</span>
+                                            <span className="font-bold text-slate-900">{formattedClassesDate}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Optional Re-upload Form */}
+                                    {showReuploadForm && (
+                                        <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-white border border-blue-300 space-y-4">
+                                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                                                <Upload className="h-4 w-4 text-blue-600" />
+                                                <span>Re-Upload Corrected Stamped Bank Deposit Slip</span>
+                                            </h4>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
+                                                    <input
+                                                        type="file"
+                                                        required
+                                                        accept=".jpg,.jpeg,.png,.pdf,.webp"
+                                                        onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
+                                                        className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={uploadChallanForm.data.bank_reference}
+                                                        onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
+                                                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
+                                                    <input
+                                                        type="date"
+                                                        required
+                                                        value={uploadChallanForm.data.deposit_date}
+                                                        onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
+                                                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                    />
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-amber-900/90 leading-relaxed">
-                                                As soon as the Admission Clerk verifies your credentials, your official <strong>Entrance Test Roll No Slip</strong> will be unlocked right here. You will download and print the slip to bring with you to college on test day.
+
+                                            <div className="flex items-center justify-end">
+                                                <button
+                                                    type="submit"
+                                                    disabled={uploadChallanForm.processing}
+                                                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition disabled:opacity-50 cursor-pointer"
+                                                >
+                                                    {uploadChallanForm.processing ? 'Uploading...' : 'Re-submit Deposit Slip'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* CASE 5: MERIT TRACK - WAITING LIST */}
+                            {!isRejected && !isReceiptSubmitted && isWaiting && (
+                                <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 shadow-md space-y-6 text-amber-950">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-amber-200 pb-5">
+                                        <div className="flex items-start space-x-3.5">
+                                            <div className="h-12 w-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                                                <Clock className="h-6 w-6" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-amber-400 text-slate-950 shadow-xs">
+                                                        WAITING LIST - RANK #{latestApplication.entrance_test_attempt?.merit_rank || 'N/A'}
+                                                    </span>
+                                                    <span className="text-xs font-mono font-bold text-amber-800">
+                                                        Entrance Test Evaluated
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-black text-xl text-amber-950">
+                                                    Admission Status: On Merit Waiting List
+                                                </h3>
+                                                <p className="text-xs text-amber-900">
+                                                    Applied Trade: <strong>{course?.name}</strong> • Candidate: <strong>{user.name}</strong>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {myTradeMeritList && (
+                                            <a
+                                                href={route('clerk.merit-lists.download', myTradeMeritList.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition shadow-sm"
+                                            >
+                                                <Award className="h-4 w-4" />
+                                                <span>View Official Merit List</span>
+                                            </a>
+                                        )}
+                                    </div>
+
+                                    {/* Clean Waiting Notice */}
+                                    <div className="p-5 rounded-2xl bg-white border border-amber-300 text-xs space-y-2">
+                                        <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
+                                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                                            <span>Waiting List Seat Allocation Policy:</span>
+                                        </div>
+                                        <p className="text-xs text-slate-700 leading-relaxed pl-6">
+                                            You have passed the entrance examination and are currently placed on the Merit Waiting List. If any selected open merit candidates fail to deposit their admission fee within the payment deadline, vacant seats will be opened strictly in order of merit rank.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                        <div className="p-3.5 rounded-xl bg-white/70 border border-amber-200">
+                                            <span className="text-[10px] font-bold text-amber-800 uppercase block">Your Merit Rank</span>
+                                            <span className="font-black text-amber-950 text-base font-mono">
+                                                Position #{latestApplication.entrance_test_attempt?.merit_rank || 'Evaluated'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-white/70 border border-amber-200">
+                                            <span className="text-[10px] font-bold text-amber-800 uppercase block">Open Merit Quota</span>
+                                            <span className="font-bold text-slate-900">{course?.capacity ?? 25} Seats Total</span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-white/70 border border-amber-200">
+                                            <span className="text-[10px] font-bold text-amber-800 uppercase block">Seat Upgrade Alert</span>
+                                            <span className="font-bold text-slate-900">Automatic SMS & Dashboard Push</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CASE 4: MERIT TRACK - SELECTED ON OPEN MERIT & CHALLAN ISSUED */}
+                            {!isRejected && !isReceiptSubmitted && !isWaiting && isSelectedMerit && (
+                                <div className="rounded-3xl p-6 sm:p-8 bg-white border-2 border-emerald-400 shadow-xl space-y-6 text-slate-900">
+                                    <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 text-emerald-950 space-y-2">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div className="flex items-center space-x-2">
+                                                <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-emerald-600 text-white shadow-xs">
+                                                    SELECTED ON OPEN MERIT - RANK #{latestApplication.entrance_test_attempt?.merit_rank || 1}
+                                                </span>
+                                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-200 text-emerald-900">
+                                                    Offer of Admission
+                                                </span>
+                                            </div>
+
+                                            {myTradeMeritList && (
+                                                <a
+                                                    href={route('clerk.merit-lists.download', myTradeMeritList.id)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline"
+                                                >
+                                                    <Award className="h-3.5 w-3.5" />
+                                                    <span>View Official Merit List</span>
+                                                </a>
+                                            )}
+                                        </div>
+
+                                        <h3 className="font-black text-xl text-emerald-950 pt-1">
+                                            Congratulations! You are Selected for Admission in {course?.name}
+                                        </h3>
+                                        <p className="text-xs text-emerald-900 leading-relaxed">
+                                            You have qualified on open merit in the entrance screening examination. Your official admission fee challan voucher has been issued. Deposit your fee before the deadline to lock your seat.
+                                        </p>
+                                    </div>
+
+                                    {/* Payment Deadline Alert Strip */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                                        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 space-y-1 shadow-xs">
+                                            <div className="flex items-center space-x-1.5 text-rose-700">
+                                                <AlertTriangle className="h-4 w-4 animate-pulse" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">LAST DATE TO PAY</span>
+                                            </div>
+                                            <div className="text-lg font-black text-rose-950">{formattedDueDate}</div>
+                                            <p className="text-[10px] font-semibold text-rose-800">
+                                                Strict deadline. Unpaid seats offered to waiting list.
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
-                                            <div className="p-3 rounded-xl bg-amber-100/60 border border-amber-200">
-                                                <span className="text-[10px] font-bold text-amber-800 uppercase block">Applied Trade</span>
-                                                <span className="font-bold text-amber-950">{course?.name}</span>
+                                        <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 space-y-1 shadow-xs">
+                                            <div className="flex items-center space-x-1.5 text-emerald-700">
+                                                <CreditCard className="h-4 w-4" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">TOTAL ADMISSION FEE</span>
                                             </div>
-                                            <div className="p-3 rounded-xl bg-amber-100/60 border border-amber-200">
-                                                <span className="text-[10px] font-bold text-amber-800 uppercase block">Tentative Test Schedule</span>
-                                                <span className="font-bold text-amber-950 font-mono">
-                                                    {latestApplication.test_date ? new Date(latestApplication.test_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Announced Upon Verification'}
-                                                </span>
+                                            <div className="text-lg font-black font-mono text-emerald-900">
+                                                PKR {Number(feeAmount).toLocaleString()}
                                             </div>
-                                            <div className="p-3 rounded-xl bg-amber-100/60 border border-amber-200">
-                                                <span className="text-[10px] font-bold text-amber-800 uppercase block">Test Venue</span>
-                                                <span className="font-bold text-amber-950">GTTI Examination Hall</span>
+                                            <p className="text-[10px] font-semibold text-emerald-800">
+                                                Tuition, lab, and workshop fees included.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 rounded-2xl bg-blue-50 border-2 border-blue-300 text-blue-950 space-y-1 shadow-xs">
+                                            <div className="flex items-center space-x-1.5 text-blue-700">
+                                                <Building2 className="h-4 w-4" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">AUTHORIZED BANKS</span>
                                             </div>
+                                            <div className="text-sm font-black text-blue-950">NBP / BOP / College</div>
+                                            <p className="text-[10px] font-semibold text-blue-800">
+                                                Payable at any online branch nationwide.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-1 shadow-xs">
+                                            <div className="flex items-center space-x-1.5 text-amber-700">
+                                                <Calendar className="h-4 w-4" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">CLASSES COMMENCE</span>
+                                            </div>
+                                            <div className="text-lg font-black text-amber-950">{formattedClassesDate}</div>
+                                            <p className="text-[10px] font-semibold text-amber-800">
+                                                Report at 08:00 AM sharp with stamped slip.
+                                            </p>
                                         </div>
                                     </div>
-                                );
-                            }
 
-                            {/* SUBCASE 2B: APPLICATION VERIFIED BY CLERK -> SHOW OFFICIAL ROLL NO SLIP */}
-                            return (
+                                    {/* Action Bar: Download Fee Challan */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-mono font-bold text-slate-600">
+                                                Challan #{latestApplication.fee_challan?.challan_number || `MERIT-${latestApplication.application_number}`}
+                                            </span>
+                                            <h4 className="font-black text-slate-900 text-base">
+                                                Download Official Fee Challan Voucher
+                                            </h4>
+                                            <p className="text-xs text-slate-500">
+                                                Take a printed copy of the 3-part bank challan to any National Bank of Pakistan branch.
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                                            {latestApplication.clerk_challan_path && (
+                                                <a
+                                                    href={route('applications.challan-document', latestApplication.id)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-1.5"
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                    <span>Download Stamped Challan (PDF)</span>
+                                                </a>
+                                            )}
+                                            <a
+                                                href={route('applications.print-challan', latestApplication.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-2"
+                                            >
+                                                <Printer className="h-4 w-4 text-amber-400" />
+                                                <span>Print 3-Copy Voucher</span>
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    {/* Inline Form to Upload Stamped Bank Receipt */}
+                                    <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                                            <Upload className="h-4 w-4 text-amber-500" />
+                                            <span>Upload Paid Bank Receipt / Deposit Slip to Confirm Seat</span>
+                                        </h4>
+
+                                        {Object.keys(uploadChallanForm.errors).length > 0 && (
+                                            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center space-x-2">
+                                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                                                <span>{uploadChallanForm.errors.challan_receipt || uploadChallanForm.errors.deposit_date || uploadChallanForm.errors.bank_reference || 'Please fix the errors below before submitting.'}</span>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
+                                                <input
+                                                    type="file"
+                                                    required
+                                                    accept=".jpg,.jpeg,.png,.pdf,.webp"
+                                                    onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
+                                                    className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    placeholder="e.g. NBP Model Branch / Scroll #1024"
+                                                    value={uploadChallanForm.data.bank_reference}
+                                                    onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
+                                                    className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
+                                                <input
+                                                    type="date"
+                                                    required
+                                                    value={uploadChallanForm.data.deposit_date}
+                                                    onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
+                                                    className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                                            <p className="text-[11px] text-slate-500">
+                                                Deposit your fee at any NBP counter and upload the stamped customer copy here.
+                                            </p>
+                                            <button
+                                                type="submit"
+                                                disabled={uploadChallanForm.processing}
+                                                className="px-5 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition disabled:opacity-50 cursor-pointer"
+                                            >
+                                                {uploadChallanForm.processing ? 'Uploading Slip...' : 'Submit Deposit Slip'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* CASE 3: MERIT TRACK - ROLL NUMBER SLIP ISSUED */}
+                            {!isRejected && !isReceiptSubmitted && !isWaiting && !isSelectedMerit && isSlipIssued && (
                                 <div className="space-y-6">
-                                    {/* Official Entrance Test Roll No Slip Card */}
                                     <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/40 border-2 border-amber-500/50 shadow-2xl text-white space-y-6 relative overflow-hidden print-card">
-                                        {/* Watermark */}
                                         <div className="absolute right-4 bottom-2 text-slate-800/20 font-black text-8xl font-serif select-none pointer-events-none">
                                             GTTI
                                         </div>
@@ -2163,8 +2157,8 @@ export default function Dashboard({
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center space-x-2 px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg"
                                                 >
-                                                    <Download className="h-4 w-4" />
-                                                    <span>Download / Print Roll No Slip</span>
+                                                    <Printer className="h-4 w-4" />
+                                                    <span>Print Roll Number Slip</span>
                                                 </a>
                                             </div>
                                         </div>
@@ -2215,7 +2209,7 @@ export default function Dashboard({
                                             </div>
                                         </div>
 
-                                        {/* Mandatory Examination Rules */}
+                                        {/* Mandatory Instructions */}
                                         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1.5">
                                             <div className="flex items-center space-x-1.5 text-amber-400 font-bold">
                                                 <AlertCircle className="h-4 w-4" />
@@ -2229,331 +2223,394 @@ export default function Dashboard({
                                             </p>
                                         </div>
 
-                                        {/* Live CBT Exam Terminal Link if active */}
-                                        {exam && exam.is_live && attempt?.status !== 'completed' && (
-                                            <div className="pt-2 flex items-center justify-between no-print border-t border-slate-800">
-                                                <div className="flex items-center space-x-2 text-xs text-emerald-400 font-mono">
-                                                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                    <span>CBT Lab Terminal Online</span>
-                                                </div>
-                                                <a
-                                                    href={route('admissions.cbt-exam.take')}
-                                                    className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-govt-green text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg"
-                                                >
-                                                    <span>Enter CBT Exam Terminal</span>
-                                                    <ArrowRight className="h-4 w-4" />
-                                                </a>
+                                        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <strong className="text-white block">Next Step:</strong>
+                                                <span>After appearing for the test, your score will be compiled and the Official Merit List will be published on this portal.</span>
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {/* SUBCASE 2C: SELECTED CANDIDATE & FEE CHALLAN DESK */}
-                                    {(isSelected || hasClerkChallan) && (() => {
-                                        const courseClassesStart = course?.classes_start_date ? new Date(course.classes_start_date) : new Date('2026-09-16');
-                                        const challanDueDate = latestApplication.fee_challan?.due_date 
-                                            ? new Date(latestApplication.fee_challan.due_date)
-                                            : new Date(new Date(courseClassesStart).setDate(courseClassesStart.getDate() - 1));
-                                        const formattedDueDate = challanDueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                                        const formattedClassesDate = courseClassesStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                                        const feeAmount = latestApplication.fee_challan?.amount || latestApplication.fee_challan?.total_amount || 3500;
-
-                                        return (
-                                            <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-emerald-300 shadow-xl space-y-6 print-card">
-                                                {/* Header Status Notice */}
-                                                <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-emerald-100/60 to-emerald-50 border border-emerald-300 text-emerald-950 space-y-2">
-                                                    <div className="flex items-center justify-between flex-wrap gap-2">
-                                                        <div className="flex items-center space-x-2 text-emerald-800 font-black text-sm">
-                                                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                                                            <span>CONGRATULATIONS! SELECTED ON MERIT FOR ADMISSION</span>
-                                                        </div>
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white shadow-xs">
-                                                            Admission Offer Unlocked
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-emerald-900 leading-relaxed">
-                                                        Your name has been published in the official merit selection list for <strong>{course?.name}</strong>. The college Admission Desk has officially issued your admission fee challan voucher. Please pay before the deadline to lock your seat.
-                                                    </p>
-                                                </div>
-
-                                                {/* Key Important Highlights (Notice Easily for Students) */}
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                                                    {/* Card 1: Due Date */}
-                                                    <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-100/70 border-2 border-rose-400 text-rose-950 space-y-1 shadow-xs">
-                                                        <div className="flex items-center space-x-1.5 text-rose-700">
-                                                            <Clock className="h-4 w-4 animate-pulse" />
-                                                            <span className="text-[10px] font-black uppercase tracking-wider">LAST DATE TO PAY</span>
-                                                        </div>
-                                                        <div className="text-lg font-black text-rose-950">
-                                                            {formattedDueDate}
-                                                        </div>
-                                                        <p className="text-[10px] font-semibold text-rose-800">
-                                                            Strict deadline. Unpaid seats offered to waiting list.
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Card 2: Amount */}
-                                                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/70 border-2 border-emerald-400 text-emerald-950 space-y-1 shadow-xs">
-                                                        <div className="flex items-center space-x-1.5 text-emerald-700">
-                                                            <CreditCard className="h-4 w-4" />
-                                                            <span className="text-[10px] font-black uppercase tracking-wider">TOTAL ADMISSION FEE</span>
-                                                        </div>
-                                                        <div className="text-xl font-black font-mono text-emerald-900">
-                                                            PKR {Number(feeAmount).toLocaleString()}
-                                                        </div>
-                                                        <p className="text-[10px] font-semibold text-emerald-800">
-                                                            Includes Tuition & Workshop security.
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Card 3: Banks */}
-                                                    <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-sky-100/70 border-2 border-blue-300 text-blue-950 space-y-1 shadow-xs">
-                                                        <div className="flex items-center space-x-1.5 text-blue-700">
-                                                            <Building2 className="h-4 w-4" />
-                                                            <span className="text-[10px] font-black uppercase tracking-wider">AUTHORIZED BANKS</span>
-                                                        </div>
-                                                        <div className="text-sm font-black text-blue-950 leading-tight">
-                                                            NBP / BOP / College
-                                                        </div>
-                                                        <p className="text-[10px] font-semibold text-blue-800">
-                                                            Payable at any online branch across Pakistan.
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Card 4: Classes */}
-                                                    <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/70 border-2 border-amber-300 text-amber-950 space-y-1 shadow-xs">
-                                                        <div className="flex items-center space-x-1.5 text-amber-700">
-                                                            <Calendar className="h-4 w-4" />
-                                                            <span className="text-[10px] font-black uppercase tracking-wider">CLASSES COMMENCE</span>
-                                                        </div>
-                                                        <div className="text-lg font-black text-amber-950">
-                                                            {formattedClassesDate}
-                                                        </div>
-                                                        <p className="text-[10px] font-semibold text-amber-800">
-                                                            Report at 08:00 AM sharp with stamped slip.
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Action Bar */}
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center space-x-2">
-                                                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                                OFFICIAL ADMISSION FEE CHALLAN
-                                                            </span>
-                                                            <span className="text-xs font-mono font-bold text-slate-700">
-                                                                Challan #{latestApplication.fee_challan?.challan_number || `MERIT-${latestApplication.application_number}`}
-                                                            </span>
-                                                        </div>
-                                                        <h3 className="text-base font-black text-slate-900">
-                                                            Admission Fee Voucher Documents
-                                                        </h3>
-                                                        <p className="text-xs text-slate-500">
-                                                            Download the stamped challan PDF or print the official 3-copy bank voucher.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="flex flex-wrap items-center gap-2.5 shrink-0 no-print">
-                                                        {latestApplication.clerk_challan_path && (
-                                                            <a
-                                                                href={route('applications.challan-document', latestApplication.id)}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-1.5"
-                                                            >
-                                                                <Download className="h-4 w-4" />
-                                                                <span>Download Stamped Challan (PDF)</span>
-                                                            </a>
-                                                        )}
-
-                                                        <a
-                                                            href={route('applications.print-challan', latestApplication.id)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-2"
-                                                        >
-                                                            <Printer className="h-4 w-4 text-amber-400" />
-                                                            <span>Print 3-Copy Voucher</span>
-                                                        </a>
-                                                    </div>
-                                                </div>
-
-                                                {/* 4-Step Quick Instructions */}
-                                                <div className="p-4 rounded-2xl bg-slate-900 text-white text-xs space-y-2.5">
-                                                    <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                                                        <AlertCircle className="h-4 w-4" />
-                                                        <span>Next Steps to Finalize Your Admission (Urgent Procedure):</span>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 text-[11px]">
-                                                        <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                                            <span className="font-bold text-amber-400 block mb-0.5">Step 1: Get Voucher</span>
-                                                            <span className="text-slate-300">Click <strong>Download Stamped Challan</strong> or <strong>Print 3-Copy Voucher</strong>.</span>
-                                                        </div>
-                                                        <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                                            <span className="font-bold text-amber-400 block mb-0.5">Step 2: Deposit at Bank</span>
-                                                            <span className="text-slate-300">Deposit <strong>PKR {Number(feeAmount).toLocaleString()}</strong> at NBP/BOP before <strong>{formattedDueDate}</strong>.</span>
-                                                        </div>
-                                                        <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                                            <span className="font-bold text-amber-400 block mb-0.5">Step 3: Capture Photo</span>
-                                                            <span className="text-slate-300">Take a clear picture of the bank-stamped "Student / Depositor Copy".</span>
-                                                        </div>
-                                                        <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                                            <span className="font-bold text-amber-400 block mb-0.5">Step 4: Upload Below</span>
-                                                            <span className="text-slate-300">Submit the picture in the form below. Clerk will verify and confirm seat.</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Confirmation or Receipt Upload */}
-                                            {isConfirmed ? (
-                                                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
-                                                    <div className="flex items-center space-x-2 text-emerald-800 font-black text-sm">
-                                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                                                        <span>ADMISSION FEE VERIFIED & SEAT CONFIRMED</span>
-                                                    </div>
-                                                    <p className="text-xs text-emerald-900 leading-relaxed">
-                                                        The Admission Clerk has verified your paid bank fee receipt. Your admission in <strong>{course?.name}</strong> is fully secured.
-                                                    </p>
-                                                    <div className="p-3.5 rounded-xl bg-emerald-100/70 border border-emerald-300 text-xs text-emerald-950 space-y-1">
-                                                        <span className="font-black block uppercase text-[10px] tracking-wider text-emerald-900">
-                                                            Class Teacher Manual Portal Activation Notice
-                                                        </span>
-                                                        <p className="text-[11px] text-emerald-900/90 leading-relaxed">
-                                                            As per institutional workflow, all enrolled students' LMS courses, assignments, and attendance portals will be <strong>manually activated by your assigned Class Teacher</strong> in the classroom on class commencement day.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ) : latestApplication.challan_receipt_path ? (
-                                                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2">
-                                                    <div className="flex items-center space-x-2 text-blue-800 font-bold text-sm">
-                                                        <Clock className="h-5 w-5 text-blue-600 animate-spin" />
-                                                        <span>Paid Bank Deposit Slip Under Clerical Verification</span>
-                                                    </div>
-                                                    <p className="text-xs text-blue-800/90 leading-relaxed">
-                                                        You uploaded bank reference: <strong>{latestApplication.challan_bank_reference || 'Submitted'}</strong> on {latestApplication.challan_deposit_date ? new Date(latestApplication.challan_deposit_date).toLocaleDateString() : 'recent'}. The Admission Clerk is scrutinizing the payment slip to confirm your admission.
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                /* Upload Bank Deposit Slip Form */
-                                                <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 no-print">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
-                                                            <Upload className="h-4 w-4 text-amber-500" />
-                                                            <span>Upload Paid Bank Receipt / Deposit Slip</span>
-                                                        </h4>
-                                                        <span className="text-[10px] text-slate-500 font-medium">Required to finalize admission</span>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
-                                                            <input
-                                                                type="file"
-                                                                required
-                                                                accept=".jpg,.jpeg,.png,.pdf"
-                                                                onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
-                                                                className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
-                                                            <input
-                                                                type="text"
-                                                                required
-                                                                placeholder="e.g. NBP Main Branch / Scroll #982"
-                                                                value={uploadChallanForm.data.bank_reference}
-                                                                onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
-                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
-                                                            <input
-                                                                type="date"
-                                                                required
-                                                                value={uploadChallanForm.data.deposit_date}
-                                                                onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
-                                                                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                                                        <p className="text-[11px] text-slate-500">
-                                                            Deposit your fee at any NBP counter and upload the stamped customer copy here.
-                                                        </p>
-                                                        <button
-                                                            type="submit"
-                                                            disabled={uploadChallanForm.processing}
-                                                            className="px-5 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition disabled:opacity-50"
-                                                        >
-                                                            {uploadChallanForm.processing ? 'Uploading Slip...' : 'Submit Deposit Slip'}
-                                                        </button>
-                                                    </div>
-                                                </form>
+                                            {myTradeMeritList && (
+                                                <a
+                                                    href={route('clerk.merit-lists.download', myTradeMeritList.id)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition shadow-sm shrink-0"
+                                                >
+                                                    <Award className="h-4 w-4" />
+                                                    <span>View Official Merit List</span>
+                                                </a>
                                             )}
                                         </div>
-                                    );
-                                })()}
-                            </div>
-                        );
-                    })()}
-
-                        {/* Application Summary Table */}
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center space-x-2.5">
-                                    <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-govt-green">
-                                        <FileText className="h-4 w-4" />
                                     </div>
-                                    <CardTitle>Application Submission History</CardTitle>
                                 </div>
-                            </CardHeader>
+                            )}
 
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs">
-                                        <thead>
-                                            <tr className="text-slate-500 border-b border-slate-100">
-                                                <th className="pb-3 font-semibold">Application Number</th>
-                                                <th className="pb-3 font-semibold">Applied Course / Trade</th>
-                                                <th className="pb-3 font-semibold">Campaign</th>
-                                                <th className="pb-3 font-semibold">Documents</th>
-                                                <th className="pb-3 font-semibold">Status</th>
-                                                <th className="pb-3 font-semibold">Submission Date</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                                            {applications.map((app) => (
-                                                <tr key={app.id}>
-                                                    <td className="py-3 font-mono font-bold text-govt-green">
-                                                        {app.application_number}
-                                                    </td>
-                                                    <td className="py-3">
-                                                        <p className="font-bold text-slate-900">{app.course?.name}</p>
-                                                        <p className="text-[11px] text-slate-500">{app.course?.trade?.program?.department?.name}</p>
-                                                    </td>
-                                                    <td className="py-3 text-slate-600">{app.admission_campaign?.name}</td>
-                                                    <td className="py-3">{app.documents?.length || 0} Attached</td>
-                                                    <td className="py-3">
-                                                        <Badge variant={getStatusBadgeVariant(app.status)} size="xs">
-                                                            {app.status}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="py-3 font-mono text-[11px] text-slate-500">
-                                                        {app.created_at ? app.created_at.substring(0, 10) : 'Recent'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                            {/* CASE 2: DIRECT FCFS TRACK - SEAT URGENCY & CHALLAN ISSUED */}
+                            {!isRejected && !isReceiptSubmitted && !isWaiting && !isSelectedMerit && !isSlipIssued && isFcfsChallanIssued && (
+                                <div className="space-y-6">
+                                    {/* Prominent Seat-Urgency Alert */}
+                                    <div className="rounded-2xl p-5 bg-gradient-to-r from-amber-50 via-amber-100/80 to-amber-50 border-2 border-amber-400 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                                        <div className="flex items-start space-x-3.5">
+                                            <div className="h-11 w-11 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 font-black shadow-md">
+                                                <AlertTriangle className="h-6 w-6" />
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-slate-950">
+                                                        DIRECT ADMISSION TRACK (FIRST-COME-FIRST-SERVED)
+                                                    </span>
+                                                    <span className="text-xs font-mono font-bold text-amber-900">
+                                                        FCFS Quota
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-black text-lg text-amber-950">
+                                                    Pay Bank Challan Promptly to Lock Your Seat!
+                                                </h3>
+                                                <p className="text-xs text-amber-900/90 leading-relaxed">
+                                                    Admissions for <strong>{course?.name}</strong> are processed directly without an entrance test. Seats are allocated upon verified fee deposit. 
+                                                    <span className="font-bold text-amber-950 ml-1 underline">Only {remainingSeats} of {totalSeats} seats remaining!</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0 bg-white/80 p-3.5 rounded-xl border border-amber-300">
+                                            <span className="text-2xl font-black font-mono text-amber-900 block">
+                                                {remainingSeats} / {totalSeats}
+                                            </span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                                                Remaining Seats
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Fee Challan & Receipt Upload Card */}
+                                    <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-slate-200 shadow-xl space-y-5 print-card">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                        OFFICIAL ADMISSION FEE CHALLAN
+                                                    </span>
+                                                    <span className="text-xs font-mono font-bold text-slate-700">
+                                                        Challan #{latestApplication.fee_challan?.challan_number || `FCFS-${latestApplication.application_number}`}
+                                                    </span>
+                                                </div>
+                                                <h3 className="text-lg font-black text-slate-900">
+                                                    Admission Fee Voucher: {course?.name}
+                                                </h3>
+                                                <p className="text-xs text-slate-500">
+                                                    Payable at any online branch of National Bank of Pakistan (NBP), Bank of Punjab (BOP), or GTTI Accounts Counter.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center space-x-3 shrink-0">
+                                                <div className="text-right mr-2">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Fee Amount</span>
+                                                    <span className="text-xl font-black font-mono text-govt-green">
+                                                        PKR {Number(feeAmount).toLocaleString()}
+                                                    </span>
+                                                </div>
+
+                                                {latestApplication.clerk_challan_path && (
+                                                    <a
+                                                        href={route('applications.challan-document', latestApplication.id)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-4 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-1.5"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                        <span>Download Stamped Challan</span>
+                                                    </a>
+                                                )}
+
+                                                <a
+                                                    href={route('applications.print-challan', latestApplication.id)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-wider transition shadow-md flex items-center space-x-2"
+                                                >
+                                                    <Printer className="h-4 w-4 text-amber-400" />
+                                                    <span>Print 3-Copy Voucher</span>
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        {/* Notice Strip */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
+                                                <span className="text-[10px] font-bold text-rose-700 uppercase block">Payment Deadline</span>
+                                                <span className="font-bold text-rose-950 font-mono">{formattedDueDate}</span>
+                                            </div>
+                                            <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200">
+                                                <span className="text-[10px] font-bold text-blue-700 uppercase block">Classes Commencement</span>
+                                                <span className="font-bold text-blue-950">{formattedClassesDate}</span>
+                                            </div>
+                                            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                                                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Fee</span>
+                                                <span className="font-bold text-emerald-950 font-mono">PKR {Number(feeAmount).toLocaleString()}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Upload Stamped Receipt Form */}
+                                        <form onSubmit={handleChallanUpload(latestApplication.id)} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                                                    <Upload className="h-4 w-4 text-amber-500" />
+                                                    <span>Upload Paid Bank Receipt / Deposit Slip</span>
+                                                </h4>
+                                                <span className="text-[10px] text-slate-500 font-medium">Required to finalize seat reservation</span>
+                                            </div>
+
+                                            {Object.keys(uploadChallanForm.errors).length > 0 && (
+                                                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center space-x-2">
+                                                    <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                                                    <span>{uploadChallanForm.errors.challan_receipt || uploadChallanForm.errors.deposit_date || uploadChallanForm.errors.bank_reference || 'Please fix the errors below before submitting.'}</span>
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Receipt Image / PDF *</label>
+                                                    <input
+                                                        type="file"
+                                                        required
+                                                        accept=".jpg,.jpeg,.png,.pdf,.webp"
+                                                        onChange={(e) => uploadChallanForm.setData('challan_receipt', e.target.files[0])}
+                                                        className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Bank Branch / Ref # *</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        placeholder="e.g. NBP Main Branch / Scroll #982"
+                                                        value={uploadChallanForm.data.bank_reference}
+                                                        onChange={(e) => uploadChallanForm.setData('bank_reference', e.target.value)}
+                                                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-slate-700 text-xs mb-1">Deposit Date *</label>
+                                                    <input
+                                                        type="date"
+                                                        required
+                                                        value={uploadChallanForm.data.deposit_date}
+                                                        onChange={(e) => uploadChallanForm.setData('deposit_date', e.target.value)}
+                                                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                                                <p className="text-[11px] text-slate-500">
+                                                    Deposit your fee at any NBP counter and upload the stamped customer copy here.
+                                                </p>
+                                                <button
+                                                    type="submit"
+                                                    disabled={uploadChallanForm.processing}
+                                                    className="px-5 py-2.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition disabled:opacity-50 cursor-pointer"
+                                                >
+                                                    {uploadChallanForm.processing ? 'Uploading Slip...' : 'Submit Deposit Slip'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
+                            )}
+
+                            {/* CASE 1: APPLICATION SUBMITTED / PENDING SCRUTINY (DEFAULT) */}
+                            {isPendingScrutiny && (
+                                <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 border-2 border-slate-800 shadow-xl space-y-6 text-white">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                                        <div className="flex items-start space-x-4">
+                                            <div className="h-12 w-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black shrink-0">
+                                                <Clock className="h-6 w-6 animate-pulse" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 tracking-wider">
+                                                        DOCUMENT SCRUTINY IN PROGRESS
+                                                    </span>
+                                                    <span className="text-xs font-mono font-bold text-slate-400">
+                                                        App #{latestApplication?.application_number}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-black text-xl text-white">
+                                                    Application Under Document Scrutiny
+                                                </h3>
+                                                <p className="text-xs text-slate-300">
+                                                    The Student Section is scrutinizing your academic credentials and documents.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <Link
+                                            href={route('student.profile.edit')}
+                                            className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition border border-slate-700 shrink-0"
+                                        >
+                                            <FileText className="h-4 w-4 text-emerald-400" />
+                                            <span>View Submitted Application</span>
+                                        </Link>
+                                    </div>
+
+                                    {/* Application Details Summary */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                                        <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase block">Applied Trade</span>
+                                            <span className="font-bold text-white text-sm">{course?.name}</span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase block">Admission Path</span>
+                                            <span className="font-bold text-amber-400">
+                                                {isMerit ? 'Merit-Based (Entrance Test Required)' : 'Direct Admission (FCFS Quota)'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase block">Date Submitted</span>
+                                            <span className="font-bold text-white font-mono">
+                                                {latestApplication?.created_at ? new Date(latestApplication.created_at).toLocaleDateString('en-GB') : 'Recent'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase block">Scrutiny Desk</span>
+                                            <span className="font-bold text-emerald-400">Student Section Clerk</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200 flex items-start space-x-2.5">
+                                        <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                                        <span>
+                                            Once your credentials are confirmed by the clerk, your next admission step ({isMerit ? 'Entrance Test Roll Number Slip' : 'Official Fee Challan Voucher'}) will automatically appear right here.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* OFFICIAL PUBLISHED MERIT LISTS DESK (ONLY FOR MERIT-BASED APPLICANTS FOR THIS SPECIFIC COURSE) */}
+                            {isMerit && courseMeritLists && courseMeritLists.length > 0 && (
+                                <div className="rounded-3xl p-6 sm:p-7 bg-white border-2 border-slate-200 shadow-sm space-y-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-govt-green flex items-center justify-center font-bold">
+                                                <Award className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center space-x-2">
+                                                    <h3 className="font-black text-slate-900 text-base">Official Merit List: {course?.name}</h3>
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
+                                                        Admission Office
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500">
+                                                    Official candidate selection merit gazette published specifically for your applied trade.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                                            {courseMeritLists.length} Published List{courseMeritLists.length > 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                        {courseMeritLists.map((list) => (
+                                            <div 
+                                                key={list.id} 
+                                                className="p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-500/20"
+                                            >
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700">
+                                                            {list.course_name || course?.name}
+                                                        </span>
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white">
+                                                            Your Applied Trade
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="font-black text-slate-900 text-sm leading-snug">{list.title}</h4>
+                                                    {list.classes_start_date && (
+                                                        <p className="text-xs text-emerald-800 font-semibold flex items-center space-x-1.5">
+                                                            <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                                            <span>Classes Start: <strong>{list.classes_start_date}</strong></span>
+                                                        </p>
+                                                    )}
+                                                    {list.remarks && (
+                                                        <p className="text-[11px] text-slate-500 line-clamp-2">{list.remarks}</p>
+                                                    )}
+                                                </div>
+
+                                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                                    <span className="text-[10px] font-mono text-slate-400">
+                                                        {list.published_at || 'Official'}
+                                                    </span>
+                                                    <a
+                                                        href={route('clerk.merit-lists.download', list.id)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition shadow-sm"
+                                                    >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                        <span>Download Official List</span>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Application Summary Table */}
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center space-x-2.5">
+                                        <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-govt-green">
+                                            <FileText className="h-4 w-4" />
+                                        </div>
+                                        <CardTitle>Application Submission History</CardTitle>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs">
+                                            <thead>
+                                                <tr className="text-slate-500 border-b border-slate-100">
+                                                    <th className="pb-3 font-semibold">Application Number</th>
+                                                    <th className="pb-3 font-semibold">Applied Course / Trade</th>
+                                                    <th className="pb-3 font-semibold">Campaign</th>
+                                                    <th className="pb-3 font-semibold">Documents</th>
+                                                    <th className="pb-3 font-semibold">Status</th>
+                                                    <th className="pb-3 font-semibold">Submission Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-slate-700">
+                                                {applications.map((app) => (
+                                                    <tr key={app.id}>
+                                                        <td className="py-3 font-mono font-bold text-govt-green">
+                                                            {app.application_number}
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <p className="font-bold text-slate-900">{app.course?.name}</p>
+                                                            <p className="text-[11px] text-slate-500">{app.course?.trade?.program?.department?.name}</p>
+                                                        </td>
+                                                        <td className="py-3 text-slate-600">{app.admission_campaign?.name}</td>
+                                                        <td className="py-3">{app.documents?.length || 0} Attached</td>
+                                                        <td className="py-3">
+                                                            <Badge variant={getStatusBadgeVariant(app.status)} size="xs">
+                                                                {app.status}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="py-3 font-mono text-[11px] text-slate-500">
+                                                            {app.created_at ? app.created_at.substring(0, 10) : 'Recent'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    );
+                })()}
 
                 {/* ════════════════════════════════════════════════════════════════
                     CONDITION 3: NEW USER / ONBOARDING STEPPER

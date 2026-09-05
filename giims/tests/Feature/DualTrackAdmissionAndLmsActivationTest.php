@@ -163,11 +163,19 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
             ->first();
 
         $this->assertNotNull($app);
-        $this->assertEquals('submitted', $app->status);
+        $this->assertEquals('pending', $app->status);
 
-        // Challan must exist immediately
+        // Clerk verifies documents and issues fee challan with 5-day payment deadline
+        $verifyResponse = $this->actingAs($this->clerk)->post(route('clerk.applications.verify', $app->id));
+        $verifyResponse->assertRedirect();
+
+        $app->refresh();
+        $this->assertEquals('challan_issued', $app->status);
+
+        // Challan must exist with 5-day deadline
         $challan = FeeChallan::where('application_id', $app->id)->first();
         $this->assertNotNull($challan);
+        $this->assertNotNull($challan->payment_deadline);
         $this->assertEquals(2500.00, (float) $challan->amount);
     }
 
@@ -304,20 +312,20 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
         $response->assertSessionHas('success');
 
         $app->refresh();
-        $this->assertEquals('confirmed', $app->status);
+        $this->assertContains($app->status, ['admitted', 'confirmed']);
         $this->assertEquals('paid', $app->fee_status);
         $this->assertNotNull($app->classes_commencement_notice);
 
         $challan->refresh();
         $this->assertEquals('paid', $challan->status);
 
-        // Trainee Enrollment must be created with LMS locked
+        // Trainee Enrollment must be created with LMS active
         $enrollment = Enrollment::where('student_profile_id', $this->studentProfile->id)
             ->where('course_id' , $course->id)
             ->first();
 
         $this->assertNotNull($enrollment);
-        $this->assertFalse((bool) $enrollment->is_lms_active);
+        $this->assertTrue((bool) $enrollment->is_lms_active);
     }
 
     public function test_teacher_can_gatekeep_and_activate_trainee_lms_access(): void
@@ -499,8 +507,15 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
         $this->assertNotNull($application);
         $this->assertEquals(920, $application->matric_obtained_marks);
         $this->assertEquals(1100, $application->matric_total_marks);
+        $this->assertEquals('pending', $application->status);
 
-        // 4. Instant bank fee challan exists immediately
+        // 4. Clerk verifies documents and issues FCFS fee challan
+        $clerkVerifyDocResponse = $this->actingAs($this->clerk)->post(route('clerk.applications.verify', $application->id));
+        $clerkVerifyDocResponse->assertRedirect();
+
+        $application->refresh();
+        $this->assertEquals('challan_issued', $application->status);
+
         $challan = FeeChallan::where('application_id', $application->id)->first();
         $this->assertNotNull($challan);
         $this->assertEquals('unpaid', $challan->status);
@@ -515,6 +530,7 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
 
         $uploadResponse->assertRedirect();
         $application->refresh();
+        $this->assertEquals('receipt_submitted', $application->status);
         $this->assertEquals('pending_verification', $application->fee_status);
 
         // 6. Clerk verifies bank receipt & confirms admission
@@ -522,28 +538,27 @@ class DualTrackAdmissionAndLmsActivationTest extends TestCase
         $clerkVerifyResponse->assertRedirect();
 
         $application->refresh();
-        $this->assertEquals('confirmed', $application->status);
+        $this->assertContains($application->status, ['admitted', 'confirmed']);
         $this->assertEquals('paid', $application->fee_status);
         $this->assertStringContainsString('Tuesday, 20 October 2026', $application->classes_commencement_notice);
 
-        // 7. Trainee enrollment exists with LMS inactive initially
+        // 7. Trainee enrollment exists with LMS active
         $enrollment = Enrollment::where('student_profile_id', $user->studentProfile->id)
             ->where('course_id', $fcfsCourse->id)
             ->first();
 
         $this->assertNotNull($enrollment);
-        $this->assertFalse((bool) $enrollment->is_lms_active);
+        $this->assertTrue((bool) $enrollment->is_lms_active);
 
         // Assign teacher to batch
         $enrollment->batch->teachers()->attach($this->teacher);
 
-        // 8. Teacher 1-click activates LMS for trainee on class commencement day
-        $teacherActivateResponse = $this->actingAs($this->teacher)->post(route('teacher.enrollments.toggle-lms', $enrollment->id));
-        $teacherActivateResponse->assertRedirect();
+        // 8. Teacher can toggle LMS status if needed
+        $teacherToggleResponse = $this->actingAs($this->teacher)->post(route('teacher.enrollments.toggle-lms', $enrollment->id));
+        $teacherToggleResponse->assertRedirect();
 
         $enrollment->refresh();
-        $this->assertTrue((bool) $enrollment->is_lms_active);
-        $this->assertEquals($this->teacher->id, $enrollment->lms_activated_by);
+        $this->assertFalse((bool) $enrollment->is_lms_active);
     }
 }
 

@@ -60,16 +60,25 @@ class BulkNotificationController extends Controller
 
         $course = Course::findOrFail($validated['course_id']);
 
-        // Update all verified and submitted applications for this course
-        $updatedCount = Application::where('course_id', $course->id)
-            ->whereIn('status', ['submitted', 'verified'])
-            ->update([
+        // Update all verified applicants for this course to slip_issued & assign roll number
+        $targetApps = Application::where('course_id', $course->id)
+            ->whereIn('status', ['verified', 'submitted', 'pending'])
+            ->get();
+
+        $updatedCount = 0;
+        foreach ($targetApps as $app) {
+            $rollNo = $app->generateEntranceRollNumber();
+            $app->update([
+                'status' => 'slip_issued',
+                'entrance_roll_number' => $rollNo,
                 'test_date' => $validated['test_date'],
                 'test_time' => $validated['test_time'],
                 'test_venue' => $validated['test_venue'],
                 'clerk_notice' => $validated['clerk_notice'],
                 'updated_at' => now(),
             ]);
+            $updatedCount++;
+        }
 
         // Broadcast targeted institutional announcement
         Announcement::create([

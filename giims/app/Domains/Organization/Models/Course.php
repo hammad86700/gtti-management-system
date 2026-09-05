@@ -30,7 +30,9 @@ class Course extends Model
         return [
             'is_active' => 'boolean',
             'is_published' => 'boolean',
+            'is_admission_open' => 'boolean',
             'requires_entrance_test' => 'boolean',
+            'capacity' => 'integer',
             'intake_capacity' => 'integer',
             'classes_start_date' => 'date',
             'duration_value' => 'integer',
@@ -38,8 +40,23 @@ class Course extends Model
             'matric_weightage' => 'integer',
             'test_weightage' => 'integer',
             'interview_weightage' => 'integer',
-            'interview_max_marks' => 'integer',
         ];
+    }
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Course $course) {
+            if ($course->isDirty('intake_capacity') && !$course->isDirty('capacity')) {
+                $course->capacity = $course->intake_capacity;
+            } elseif ($course->isDirty('capacity') && !$course->isDirty('intake_capacity')) {
+                $course->intake_capacity = $course->capacity;
+            } elseif (!empty($course->intake_capacity) && empty($course->attributes['capacity'])) {
+                $course->capacity = $course->intake_capacity;
+            }
+        });
     }
 
     /**
@@ -180,7 +197,7 @@ class Course extends Model
      */
     public function remainingSeats(): int
     {
-        $capacity = $this->intake_capacity ?: 50;
+        $capacity = $this->intake_capacity ?: ($this->capacity ?: 25);
         return max(0, $capacity - $this->currentIntakeCount());
     }
 
@@ -194,7 +211,11 @@ class Course extends Model
      */
     public function isAdmissionFull(): bool
     {
-        $capacity = $this->intake_capacity ?: 50;
+        if ($this->is_admission_open === false) {
+            return true;
+        }
+
+        $capacity = $this->intake_capacity ?: ($this->capacity ?: 25);
         return $this->currentIntakeCount() >= $capacity;
     }
 

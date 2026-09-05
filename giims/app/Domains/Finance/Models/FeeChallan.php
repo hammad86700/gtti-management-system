@@ -25,6 +25,7 @@ class FeeChallan extends Model
             'amount_paid' => 'decimal:2',
             'due_date' => 'date',
             'paid_at' => 'date',
+            'payment_deadline' => 'date',
         ];
     }
 
@@ -50,6 +51,7 @@ class FeeChallan extends Model
     {
         $this->update([
             'status' => 'paid',
+            'verification_status' => 'verified',
             'amount_paid' => $amountPaid,
             'paid_at' => $depositDate,
             'bank_branch_code' => $branchCode,

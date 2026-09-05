@@ -20,6 +20,7 @@ class ApplicationReviewController extends Controller
     {
         $courseId = $request->input('course_id');
         $status = $request->input('status', 'all');
+        $feeStatus = $request->input('fee_status', 'all');
         $search = $request->input('search');
 
         $query = Application::with([
@@ -35,7 +36,38 @@ class ApplicationReviewController extends Controller
         }
 
         if ($status && $status !== 'all') {
-            $query->where('status', $status);
+            if ($status === 'pending') {
+                $query->whereIn('status', ['pending', 'submitted']);
+            } elseif ($status === 'admitted') {
+                $query->whereIn('status', ['admitted', 'confirmed']);
+            } elseif (in_array($status, ['selected', 'selected_for_admission'])) {
+                $query->whereIn('status', ['selected', 'selected_for_admission']);
+            } elseif ($status === 'pending_fee') {
+                $query->where(function ($q) {
+                    $q->where('fee_status', 'pending_verification')
+                      ->orWhereNotNull('challan_receipt_path')
+                      ->orWhere('status', 'receipt_submitted');
+                })->whereNotIn('status', ['admitted', 'confirmed']);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+
+        if ($feeStatus && $feeStatus !== 'all') {
+            if ($feeStatus === 'pending_verification') {
+                $query->where(function ($q) {
+                    $q->where('fee_status', 'pending_verification')
+                      ->orWhereNotNull('challan_receipt_path')
+                      ->orWhere('status', 'receipt_submitted');
+                })->whereNotIn('status', ['admitted', 'confirmed']);
+            } elseif ($feeStatus === 'paid') {
+                $query->where('fee_status', 'paid');
+            } elseif ($feeStatus === 'unpaid') {
+                $query->where(function ($q) {
+                    $q->where('fee_status', 'unpaid')
+                      ->orWhereNull('fee_status');
+                });
+            }
         }
 
         if ($search) {
@@ -53,16 +85,31 @@ class ApplicationReviewController extends Controller
         $courses = Course::withCount([
             'applications as total_count',
             'applications as pending_count' => function ($q) {
-                $q->where('status', 'submitted');
+                $q->whereIn('status', ['pending', 'submitted']);
+            },
+            'applications as pending_fee_count' => function ($q) {
+                $q->where(function ($sub) {
+                    $sub->where('fee_status', 'pending_verification')
+                        ->orWhereNotNull('challan_receipt_path')
+                        ->orWhere('status', 'receipt_submitted');
+                })->whereNotIn('status', ['admitted', 'confirmed']);
             },
         ])->orderBy('name')->get();
+
+        $pendingFeeCount = Application::where(function ($q) {
+            $q->where('fee_status', 'pending_verification')
+              ->orWhereNotNull('challan_receipt_path')
+              ->orWhere('status', 'receipt_submitted');
+        })->whereNotIn('status', ['admitted', 'confirmed'])->count();
 
         return Inertia::render('Clerk/Applications/Index', [
             'applications' => $applications,
             'courses' => $courses,
+            'pendingFeeCount' => $pendingFeeCount,
             'filters' => [
                 'course_id' => $courseId,
                 'status' => $status,
+                'fee_status' => $feeStatus,
                 'search' => $search,
             ],
         ]);
@@ -73,28 +120,44 @@ class ApplicationReviewController extends Controller
      */
     public function verify(Request $request, int $id): RedirectResponse
     {
-        $application = Application::with('studentProfile.user', 'course')->findOrFail($id);
+        $application = Application::with('studentProfile.user', 'course', 'feeChallan')->findOrFail($id);
         $course = $application->course;
         $isFcfs = ($course?->admission_type === 'first_come_first_served') || ($course?->requires_entrance_test === false);
 
         if ($isFcfs) {
-            // Direct admission for FCFS courses
+            // FCFS Track: verification immediately transitions to 'challan_issued'
             $application->update([
-                'status' => 'selected_for_admission',
+                'status' => 'challan_issued',
                 'fee_status' => 'unpaid',
+                'clerk_notice' => 'Application verified. Please deposit fee challan immediately to secure your seat.',
                 'scrutinized_by' => auth()->id(),
                 'scrutinized_at' => now(),
                 'clerk_remarks' => null,
             ]);
 
+            // Ensure FeeChallan exists
+            if (!$application->feeChallan) {
+                \App\Domains\Finance\Models\FeeChallan::create([
+                    'student_profile_id' => $application->student_profile_id,
+                    'application_id' => $application->id,
+                    'challan_number' => 'CHL-' . date('Y') . '-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                    'challan_type' => 'admission',
+                    'amount' => 2500.00,
+                    'due_date' => now()->addDays(5)->format('Y-m-d'),
+                    'payment_deadline' => now()->addDays(5)->format('Y-m-d'),
+                    'status' => 'unpaid',
+                    'verification_status' => 'unpaid',
+                ]);
+            }
+
             if (function_exists('activity')) {
                 activity()
                     ->causedBy(auth()->user())
                     ->performedOn($application)
-                    ->log("Admission Clerk approved FCFS applicant '{$application->studentProfile?->user?->name}' directly for admission into '{$course?->name}'");
+                    ->log("Application verified. Please deposit fee challan immediately to secure your seat.");
             }
 
-            return redirect()->back()->with('success', "Application #{$application->application_number} verified and directly selected for admission (FCFS track). Fee challan unlocked.");
+            return redirect()->back()->with('success', "Application #{$application->application_number} verified and Fee Challan issued (FCFS track).");
         }
 
         // Merit-based track: mark verified awaiting test schedule, generate roll number
@@ -116,6 +179,107 @@ class ApplicationReviewController extends Controller
         }
 
         return redirect()->back()->with('success', "Application #{$application->application_number} verified successfully. Entrance Roll No #{$rollNumber} assigned.");
+    }
+
+    /**
+     * Issue Fee Challan with payment deadline selectively to a merit-selected candidate.
+     */
+    public function issueSelectiveChallan(Request $request, int $id): RedirectResponse
+    {
+        $application = Application::with(['studentProfile.user', 'course', 'feeChallan'])->findOrFail($id);
+
+        $deadline = $request->input('payment_deadline') ?: now()->addDays(5)->toDateString();
+
+        $application->update([
+            'status' => 'challan_issued',
+            'fee_status' => 'unpaid',
+            'clerk_notice' => "Congratulations! You have been selected on open merit. Please deposit your fee challan before {$deadline} to secure your seat.",
+            'scrutinized_by' => auth()->id(),
+            'scrutinized_at' => now(),
+        ]);
+
+        if ($application->feeChallan) {
+            $application->feeChallan->update([
+                'status' => 'unpaid',
+                'verification_status' => 'unpaid',
+                'due_date' => $deadline,
+                'payment_deadline' => $deadline,
+            ]);
+        } else {
+            \App\Domains\Finance\Models\FeeChallan::create([
+                'student_profile_id' => $application->student_profile_id,
+                'application_id' => $application->id,
+                'challan_number' => 'CHL-' . date('Y') . '-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                'challan_type' => 'admission',
+                'amount' => 2500.00,
+                'due_date' => $deadline,
+                'payment_deadline' => $deadline,
+                'status' => 'unpaid',
+                'verification_status' => 'unpaid',
+            ]);
+        }
+
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($application)
+                ->log("Clerk issued selective fee challan to candidate '{$application->studentProfile?->user?->name}' with deadline {$deadline}");
+        }
+
+        return redirect()->back()->with('success', "Fee Challan issued to candidate {$application->studentProfile?->user?->name} with payment deadline: {$deadline}.");
+    }
+
+    /**
+     * Batch issue fee challans to all selected candidates of a course.
+     */
+    public function batchIssueChallans(Request $request, int $courseId): RedirectResponse
+    {
+        $course = Course::findOrFail($courseId);
+        $deadline = $request->input('payment_deadline') ?: now()->addDays(5)->toDateString();
+
+        $selectedApps = Application::where('course_id', $course->id)
+            ->where(function ($q) {
+                $q->whereIn('status', ['selected', 'selected_for_admission', 'verified'])
+                  ->orWhereHas('entranceTestAttempt', function ($sub) {
+                      $sub->where('selection_status', 'selected');
+                  });
+            })
+            ->get();
+
+        $count = 0;
+        foreach ($selectedApps as $app) {
+            $app->update([
+                'status' => 'challan_issued',
+                'fee_status' => 'unpaid',
+                'clerk_notice' => "Congratulations! You have been selected on open merit. Please deposit your fee challan before {$deadline} to secure your seat.",
+                'scrutinized_by' => auth()->id(),
+                'scrutinized_at' => now(),
+            ]);
+
+            if ($app->feeChallan) {
+                $app->feeChallan->update([
+                    'status' => 'unpaid',
+                    'verification_status' => 'unpaid',
+                    'due_date' => $deadline,
+                    'payment_deadline' => $deadline,
+                ]);
+            } else {
+                \App\Domains\Finance\Models\FeeChallan::create([
+                    'student_profile_id' => $app->student_profile_id,
+                    'application_id' => $app->id,
+                    'challan_number' => 'CHL-' . date('Y') . '-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                    'challan_type' => 'admission',
+                    'amount' => 2500.00,
+                    'due_date' => $deadline,
+                    'payment_deadline' => $deadline,
+                    'status' => 'unpaid',
+                    'verification_status' => 'unpaid',
+                ]);
+            }
+            $count++;
+        }
+
+        return redirect()->back()->with('success', "Batch issued fee challans to {$count} selected candidate(s) of '{$course->name}' with deadline {$deadline}.");
     }
 
     /**
@@ -204,16 +368,20 @@ class ApplicationReviewController extends Controller
         $application = Application::with(['studentProfile.user', 'course', 'feeChallan'])->findOrFail($id);
         $course = $application->course;
 
-        // 1. Mark application and fee challan as paid & confirmed
+        // 1. Mark application and fee challan as paid & admitted
         $commencementDate = $course?->classes_start_date 
             ? $course->classes_start_date->format('l, d F Y')
             : 'Monday, 15 September 2026';
 
         $notice = "Congratulations! Your admission into '{$course?->name}' is officially confirmed. Classes commence on {$commencementDate}. Please report to the designated trade workshop for induction & biometric onboarding.";
 
+        $permanentRollNo = $application->generateInstitutionalRollNumber();
+
         $application->update([
-            'status' => 'confirmed',
+            'status' => 'admitted',
             'fee_status' => 'paid',
+            'institutional_roll_number' => $permanentRollNo,
+            'admission_confirmed_at' => now(),
             'classes_commencement_notice' => $notice,
             'scrutinized_by' => auth()->id(),
             'scrutinized_at' => now(),
@@ -222,12 +390,13 @@ class ApplicationReviewController extends Controller
         if ($application->feeChallan) {
             $application->feeChallan->update([
                 'status' => 'paid',
+                'verification_status' => 'verified',
                 'amount_paid' => $application->feeChallan->amount ?: 2500.00,
                 'paid_at' => $application->challan_deposit_date ?: now(),
             ]);
         }
 
-        // 2. Create official Enrollment with is_lms_active = false (Awaiting Teacher first-day orientation activation)
+        // 2. Create official Enrollment with is_lms_active = true (Unlocks full LMS cockpit)
         $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)->first();
         if (!$batch) {
             $batch = \App\Domains\Organization\Models\Batch::create([
@@ -245,12 +414,27 @@ class ApplicationReviewController extends Controller
             ],
             [
                 'batch_id' => $batch->id,
-                'enrollment_number' => 'GTTI-' . date('Y') . '-' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                'enrollment_number' => $permanentRollNo,
                 'enrollment_date' => now()->toDateString(),
                 'status' => 'active',
-                'is_lms_active' => false,
+                'is_lms_active' => true,
             ]
         );
+
+        $enrollment->update([
+            'status' => 'active',
+            'is_lms_active' => true,
+            'enrollment_number' => $permanentRollNo,
+        ]);
+
+        // Enforce capacity: if confirmed students >= course capacity, automatically lock admissions
+        $confirmedCount = Application::where('course_id', $course->id)
+            ->whereIn('status', ['admitted', 'confirmed'])
+            ->count();
+        $capacity = $course->capacity ?: ($course->intake_capacity ?: 25);
+        if ($confirmedCount >= $capacity) {
+            $course->update(['is_admission_open' => false]);
+        }
 
         // Assign student role to user
         $studentRole = \App\Domains\Identity\Models\Role::where('slug', 'student')->first();
@@ -262,7 +446,7 @@ class ApplicationReviewController extends Controller
         \App\Domains\Operations\Models\Announcement::create([
             'created_by' => auth()->id(),
             'title' => "Official Admission Confirmed: {$course->name}",
-            'message' => "Candidate {$application->studentProfile?->user?->name} (App #{$application->application_number}) fee payment verified. {$notice}",
+            'message' => "Candidate {$application->studentProfile?->user?->name} (App #{$application->application_number}) fee payment verified. Permanent Roll No: {$permanentRollNo}. {$notice}",
             'target_audience' => 'students',
         ]);
 
@@ -270,10 +454,10 @@ class ApplicationReviewController extends Controller
             activity()
                 ->causedBy(auth()->user())
                 ->performedOn($application)
-                ->log("Admission Clerk verified fee receipt and confirmed admission for '{$application->studentProfile?->user?->name}' into '{$course->name}'");
+                ->log("Admission Clerk verified fee receipt and confirmed admission for '{$application->studentProfile?->user?->name}' into '{$course->name}' with Permanent Roll #{$permanentRollNo}");
         }
 
-        return redirect()->back()->with('success', "Admission officially confirmed for applicant {$application->studentProfile?->user?->name}! Fee marked paid and commencement notice issued.");
+        return redirect()->back()->with('success', "Admission officially confirmed for applicant {$application->studentProfile?->user?->name}! Permanent Roll #{$permanentRollNo} assigned and LMS access activated.");
     }
 
     /**

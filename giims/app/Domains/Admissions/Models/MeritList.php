@@ -29,6 +29,7 @@ class MeritList extends Model
         return [
             'classes_start_date' => 'date',
             'published_at' => 'datetime',
+            'is_publicly_visible' => 'boolean',
         ];
     }
 
@@ -70,5 +71,16 @@ class MeritList extends Model
     public function scopePublished($query)
     {
         return $query->where('status', 'published');
+    }
+
+    /**
+     * Scope for publicly visible merit lists.
+     */
+    public function scopePubliclyVisible($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_publicly_visible', true)
+              ->orWhere('status', 'published');
+        });
     }
 }
