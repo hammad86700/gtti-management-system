@@ -259,8 +259,8 @@ export default function AdminLayout({ header, children }) {
                 {/* Brand Header */}
                 <div className="h-18 px-5 flex items-center justify-between border-b border-emerald-900/60 shrink-0 bg-[#082D1B]/60">
                     <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shadow-inner shrink-0">
-                            <Shield className="h-5 w-5 text-emerald-400" />
+                        <div className="h-11 w-11 rounded-xl bg-white p-1 shadow-md border border-emerald-400/40 flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
                         </div>
                         <div className="min-w-0">
                             <div className="flex items-center space-x-1.5">
@@ -378,7 +378,10 @@ export default function AdminLayout({ header, children }) {
                         >
                             <Menu className="h-5 w-5" />
                         </button>
-                        <div className="flex items-center space-x-2 text-xs font-medium">
+                        <div className="flex items-center space-x-2.5 text-xs font-medium">
+                            <div className="h-7 w-7 rounded-lg bg-white p-0.5 border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
+                                <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+                            </div>
                             <span className="font-bold text-[#0B3B24] tracking-tight">GIIMS Portal</span>
                             <span className="text-slate-300">•</span>
                             <span className="text-slate-600 font-semibold hidden sm:inline">Session 2026–2027</span>

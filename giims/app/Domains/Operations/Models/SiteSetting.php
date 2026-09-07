@@ -32,6 +32,8 @@ class SiteSetting extends Model
             'accreditation_text' => 'PBTE & NAVTTC Accredited',
             'helpline' => '068-9230123 / 068-9230124',
             'motto' => 'Faith, Unity, Discipline',
+            'institute_logo' => '/images/tevta-logo.png',
+            'tevta_logo' => '/images/tevta-logo.png',
         ];
     }
 

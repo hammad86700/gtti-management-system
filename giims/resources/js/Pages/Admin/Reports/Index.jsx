@@ -176,7 +176,7 @@ export default function Index({ counts = {} }) {
  <a
  href={report.downloadUrl}
  download
- className="px-4 py-2 rounded-xl bg-white hover:bg-govt-cream-300 :bg-govt-cream-300 text-white font-extrabold text-xs transition shadow-sm flex items-center space-x-2 group-hover:bg-govt-green :bg-govt-green"
+ className="px-4 py-2 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-extrabold text-xs transition shadow-sm flex items-center space-x-2"
  >
  <Download className="h-3.5 w-3.5" />
  <span>Download CSV</span>
@@ -188,7 +188,7 @@ export default function Index({ counts = {} }) {
  </div>
 
  {/* TEVTA AUDIT COMPLIANCE ADVISORY */}
- <div className="p-6 rounded-xl bg-white text-white border border-gray-200 space-y-3">
+ <div className="p-6 rounded-xl bg-white border border-gray-200 space-y-3">
  <div className="flex items-center space-x-2.5">
  <ShieldCheck className="h-5 w-5 text-govt-green-500" />
  <h4 className="text-sm font-extrabold text-gray-900">

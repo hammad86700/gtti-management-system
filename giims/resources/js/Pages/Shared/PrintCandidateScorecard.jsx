@@ -35,19 +35,25 @@ export default function PrintCandidateScorecard({ attempt, candidate, course, sc
                 </div>
 
                 {/* Letterhead Header */}
-                <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-                        GOVERNMENT OF THE PUNJAB • TEVTA
-                    </span>
-                    <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-950">
-                        Government Technical Training Institute (GTTI)
-                    </h1>
-                    <p className="text-xs text-slate-600 font-semibold">
-                        Rahim Yar Khan, Punjab, Pakistan
-                    </p>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 bg-slate-100 py-1 rounded-md mt-2">
-                        Official Entrance Examination & Merit Scorecard
-                    </h2>
+                <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="h-16 w-16 shrink-0 flex items-center justify-center">
+                        <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+                    </div>
+                    <div className="text-center flex-1 space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+                            GOVERNMENT OF THE PUNJAB • TEVTA
+                        </span>
+                        <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-950">
+                            Government Technical Training Institute (GTTI)
+                        </h1>
+                        <p className="text-xs text-slate-600 font-semibold">
+                            Rahim Yar Khan, Punjab, Pakistan
+                        </p>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 bg-slate-100 py-1 rounded-md mt-2">
+                            Official Entrance Examination & Merit Scorecard
+                        </h2>
+                    </div>
+                    <div className="h-16 w-16 shrink-0 hidden sm:block opacity-0" />
                 </div>
 
                 {/* Candidate Particulars Grid */}

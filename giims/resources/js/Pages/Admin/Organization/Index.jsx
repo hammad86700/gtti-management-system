@@ -31,6 +31,7 @@ import {
     Shield,
     Phone,
     FileText,
+    Image as ImageIcon,
 } from 'lucide-react';
 
 export default function Index({
@@ -52,6 +53,7 @@ export default function Index({
     const [tradeModal, setTradeModal] = useState({ open: false, mode: 'create', data: null });
     const [batchModal, setBatchModal] = useState({ open: false, mode: 'create', data: null });
     const [deleteModal, setDeleteModal] = useState({ open: false, type: '', id: null, name: '', url: '' });
+    const [activeFlyerPreview, setActiveFlyerPreview] = useState(null);
 
     // Trainee Roster Modal State (Phase 24)
     const [rosterModal, setRosterModal] = useState({
@@ -315,7 +317,15 @@ export default function Index({
                                 setCourseModal({
                                     open: true,
                                     mode: 'create',
-                                    data: { trade_id: allTrades[0]?.id || '', name: '', entry_level: 'Matric', is_active: true },
+                                    data: {
+                                        trade_id: allTrades[0]?.id || '',
+                                        name: '',
+                                        entry_level: 'Matric',
+                                        is_active: true,
+                                        advertisement_image: null,
+                                        remove_advertisement: false,
+                                        advertisement_preview: null,
+                                    },
                                 })
                             }
                             className="inline-flex items-center space-x-1.5 py-2 px-3.5 rounded-xl bg-amber-600 text-white text-xs font-bold shadow-xs hover:bg-amber-700 transition"
@@ -572,6 +582,9 @@ export default function Index({
                                                                                     name: '',
                                                                                     entry_level: 'Matric',
                                                                                     is_active: true,
+                                                                                    advertisement_image: null,
+                                                                                    remove_advertisement: false,
+                                                                                    advertisement_preview: null,
                                                                                 },
                                                                             })
                                                                         }
@@ -650,6 +663,17 @@ export default function Index({
                                                                                                 {course.terminated_enrollments_count} Expelled
                                                                                             </span>
                                                                                         )}
+                                                                                        {(course.advertisement_url || course.advertisement_image_path) && (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => setActiveFlyerPreview(course)}
+                                                                                                className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
+                                                                                                title="View Course Advertisement Flyer"
+                                                                                            >
+                                                                                                <ImageIcon className="h-3 w-3" />
+                                                                                                <span>Ad Flyer</span>
+                                                                                            </button>
+                                                                                        )}
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -676,6 +700,9 @@ export default function Index({
                                                                                                 name: course.name,
                                                                                                 entry_level: course.entry_level,
                                                                                                 is_active: course.is_active,
+                                                                                                advertisement_image: null,
+                                                                                                remove_advertisement: false,
+                                                                                                advertisement_preview: course.advertisement_url || (course.advertisement_image_path ? `/storage/${course.advertisement_image_path}` : null),
                                                                                             },
                                                                                         })
                                                                                     }
@@ -830,9 +857,12 @@ export default function Index({
                                 const url = isEdit
                                     ? route('admin.organization.courses.update', courseModal.data.id)
                                     : route('admin.organization.courses.store');
-                                const method = isEdit ? 'patch' : 'post';
 
-                                router[method](url, courseModal.data, {
+                                router.post(url, {
+                                    ...courseModal.data,
+                                    _method: isEdit ? 'patch' : 'post',
+                                }, {
+                                    forceFormData: true,
                                     onFinish: () => {
                                         setSubmitting(false);
                                         setCourseModal({ open: false, mode: 'create', data: null });
@@ -918,6 +948,76 @@ export default function Index({
                                 <label htmlFor="course_active" className="text-gray-700 font-semibold cursor-pointer">
                                     Active for Student Enrollment & Batch Allocations
                                 </label>
+                            </div>
+
+                            {/* Course Advertisement / Intake Flyer (Optional) */}
+                            <div className="pt-2 border-t border-gray-100">
+                                <label className="block text-gray-700 font-bold mb-1">
+                                    Course Advertisement Flyer / Banner (Optional)
+                                </label>
+                                <p className="text-[11px] text-gray-500 mb-2">
+                                    Upload official marketing flyer/poster for public portal and applicant preview (JPG, PNG, WebP up to 5MB).
+                                </p>
+
+                                {courseModal.data.advertisement_preview ? (
+                                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-gray-50 p-2.5 flex items-center space-x-3">
+                                        <img
+                                            src={courseModal.data.advertisement_preview}
+                                            alt="Ad Preview"
+                                            className="w-14 h-14 object-cover rounded-xl border border-gray-200 bg-white shrink-0"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-gray-800 text-xs truncate">
+                                                {courseModal.data.advertisement_image?.name || 'Current Advertisement Flyer'}
+                                            </p>
+                                            <p className="text-[10px] text-emerald-700 font-semibold">
+                                                ✓ Active flyer attached
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setCourseModal({
+                                                    ...courseModal,
+                                                    data: {
+                                                        ...courseModal.data,
+                                                        advertisement_image: null,
+                                                        advertisement_preview: null,
+                                                        remove_advertisement: true,
+                                                    },
+                                                })
+                                            }
+                                            className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition shrink-0"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-gray-300 hover:border-govt-green rounded-2xl cursor-pointer bg-gray-50 hover:bg-emerald-50/40 transition">
+                                        <ImageIcon className="h-5 w-5 text-gray-400 mb-1" />
+                                        <span className="text-xs font-bold text-gray-700">Click to upload intake ad flyer</span>
+                                        <span className="text-[10px] text-gray-400">JPG, PNG, WebP up to 5MB</span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    setCourseModal({
+                                                        ...courseModal,
+                                                        data: {
+                                                            ...courseModal.data,
+                                                            advertisement_image: file,
+                                                            advertisement_preview: URL.createObjectURL(file),
+                                                            remove_advertisement: false,
+                                                        },
+                                                    });
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-end space-x-2 pt-4 border-t border-gray-100">
@@ -2049,6 +2149,67 @@ export default function Index({
                             >
                                 {reinstateModal.submitting ? 'Reinstating...' : 'Confirm Reinstatement'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Course Advertisement Flyer Lightbox Modal */}
+            {activeFlyerPreview && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-all animate-in fade-in"
+                    onClick={() => setActiveFlyerPreview(null)}
+                >
+                    <div
+                        className="relative bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                            <div className="flex items-center space-x-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-800">
+                                    <ImageIcon className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h4 className="font-black text-sm text-slate-900">{activeFlyerPreview.name}</h4>
+                                    <p className="text-[11px] text-slate-500 font-medium">Official Intake Flyer & Course Advertisement</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveFlyerPreview(null)}
+                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto max-h-[65vh]">
+                            <img
+                                src={activeFlyerPreview.advertisement_url || `/storage/${activeFlyerPreview.advertisement_image_path}`}
+                                alt={activeFlyerPreview.name}
+                                className="max-h-[60vh] w-auto object-contain rounded-lg shadow-lg"
+                            />
+                        </div>
+                        <div className="p-3.5 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
+                            <span className="text-xs text-slate-600 font-medium">
+                                Entry: {activeFlyerPreview.entry_level}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                                <a
+                                    href={activeFlyerPreview.advertisement_url || `/storage/${activeFlyerPreview.advertisement_image_path}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center space-x-1"
+                                >
+                                    <span>Open Full</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveFlyerPreview(null)}
+                                    className="px-4 py-1.5 rounded-lg bg-govt-green hover:bg-emerald-700 text-white text-xs font-bold transition"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

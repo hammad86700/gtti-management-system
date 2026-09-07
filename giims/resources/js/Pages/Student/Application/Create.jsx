@@ -25,7 +25,10 @@ import {
     CreditCard,
     Download,
     ExternalLink,
-    Printer
+    Printer,
+    Image as ImageIcon,
+    Eye,
+    X
 } from 'lucide-react';
 
 export default function Create({ campaign, courses = [], profile, existingApplication = null }) {
@@ -36,6 +39,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
     const [fileErrors, setFileErrors] = useState({});
     const [showNewApplicationForm, setShowNewApplicationForm] = useState(!existingApplication);
     const [clientValidationWarning, setClientValidationWarning] = useState(null);
+    const [activeAdFlyer, setActiveAdFlyer] = useState(null);
 
     const { data, setData, post, processing, errors } = useForm({
         course_id: courses[0]?.id || '',
@@ -175,13 +179,18 @@ export default function Create({ campaign, courses = [], profile, existingApplic
         <AuthenticatedLayout
             header={
                 <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold leading-tight text-gray-800">
-                            Apply for Course Admission
-                        </h2>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            Official Mobile Admissions Portal • TEVTA Punjab
-                        </p>
+                    <div className="flex items-center space-x-3">
+                        <div className="h-10 w-10 rounded-xl bg-white p-1 border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold leading-tight text-gray-800">
+                                Apply for Course Admission
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Official Admissions Portal • TEVTA Punjab
+                            </p>
+                        </div>
                     </div>
                     <Link
                         href={route('dashboard')}
@@ -706,6 +715,36 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                                             <span>Official Classes Commencement: {new Date(selectedCourseObj.classes_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                                                         </div>
                                                     )}
+
+                                                    {/* Official Advertisement Flyer Preview if attached */}
+                                                    {(selectedCourseObj.advertisement_url || selectedCourseObj.advertisement_image_path) && (
+                                                        <div className="mt-3 pt-3 border-t border-dashed border-slate-300 flex items-center justify-between gap-3 bg-white/80 p-2.5 rounded-xl border border-slate-200">
+                                                            <div className="flex items-center space-x-2.5 min-w-0">
+                                                                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0">
+                                                                    <img
+                                                                        src={selectedCourseObj.advertisement_url || `/storage/${selectedCourseObj.advertisement_image_path}`}
+                                                                        alt="Course Ad Flyer"
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                                <div className="truncate">
+                                                                    <div className="text-xs font-bold text-slate-900 flex items-center space-x-1">
+                                                                        <ImageIcon className="w-3.5 h-3.5 text-emerald-700 inline" />
+                                                                        <span>Official Intake Flyer / Advertisement</span>
+                                                                    </div>
+                                                                    <p className="text-[11px] text-slate-500 truncate">Course prospectus & syllabus highlights</p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveAdFlyer(selectedCourseObj)}
+                                                                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center space-x-1.5 transition flex-shrink-0 shadow-sm"
+                                                            >
+                                                                <Eye className="w-3.5 h-3.5" />
+                                                                <span>View Flyer</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })()}
@@ -944,6 +983,19 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                                         : '🎓 Track A: Merit-Based (Entrance Test Required)'}
                                                 </span>
                                             </div>
+                                            {(selectedCourseObj?.advertisement_url || selectedCourseObj?.advertisement_image_path) && (
+                                                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                                                    <span className="font-bold text-gray-500">Course Intake Flyer</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveAdFlyer(selectedCourseObj)}
+                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1 hover:underline"
+                                                    >
+                                                        <ImageIcon className="w-3.5 h-3.5 inline mr-1" />
+                                                        <span>View Official Flyer</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                             <div className="flex items-center justify-between pb-2 border-b border-gray-200">
                                                 <span className="font-bold text-gray-500">CNIC Document</span>
                                                 {data.cnic_document ? (
@@ -1045,6 +1097,68 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                     </>
                 )}
             </div>
+
+            {/* Fullscreen Advertisement Flyer Lightbox Modal */}
+            {activeAdFlyer && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-all animate-in fade-in"
+                    onClick={() => setActiveAdFlyer(null)}
+                >
+                    <div
+                        className="relative bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                            <div className="flex items-center space-x-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-800">
+                                    <ImageIcon className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h4 className="font-black text-sm text-slate-900">{activeAdFlyer.name}</h4>
+                                    <p className="text-[11px] text-slate-500 font-medium">Official Intake Flyer & Course Advertisement</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveAdFlyer(null)}
+                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto max-h-[65vh]">
+                            <img
+                                src={activeAdFlyer.advertisement_url || `/storage/${activeAdFlyer.advertisement_image_path}`}
+                                alt={activeAdFlyer.name}
+                                className="max-h-[60vh] w-auto object-contain rounded-lg shadow-lg"
+                            />
+                        </div>
+                        <div className="p-3.5 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
+                            <span className="text-xs text-slate-600 font-medium">
+                                {activeAdFlyer.trade?.name || 'Technical Trade'} • Intake: {activeAdFlyer.intake_capacity} Seats
+                            </span>
+                            <div className="flex items-center space-x-2">
+                                <a
+                                    href={activeAdFlyer.advertisement_url || `/storage/${activeAdFlyer.advertisement_image_path}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center space-x-1"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span>Open Full</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveAdFlyer(null)}
+                                    className="px-4 py-1.5 rounded-lg bg-govt-green hover:bg-emerald-700 text-white text-xs font-bold transition"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

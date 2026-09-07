@@ -84,8 +84,8 @@ export default function ClerkLayout({ children, header }) {
             {isExecutive && (
                 <div className="bg-[#0B3B24] border-b border-emerald-600/50 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-white shadow-md z-50">
                     <div className="flex items-center space-x-2.5">
-                        <div className="p-1 rounded-md bg-emerald-500/20 text-emerald-300">
-                            <Shield className="h-4 w-4" />
+                        <div className="h-7 w-7 rounded-lg bg-white p-0.5 shadow-sm border border-emerald-400/40 flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <span className="font-extrabold uppercase tracking-wider text-[11px] text-emerald-300 mr-2">
@@ -128,8 +128,8 @@ export default function ClerkLayout({ children, header }) {
                                 href={isExecutive ? route('admin.dashboard') : route('clerk.dashboard')}
                                 className="flex items-center space-x-3 group"
                             >
-                                <div className="h-10 w-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[#C1902F] flex items-center justify-center font-bold group-hover:scale-105 transition">
-                                    <FileCheck className="h-5 w-5" />
+                                <div className="h-11 w-11 rounded-xl bg-white p-1 shadow-md border border-amber-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                                    <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black uppercase tracking-widest text-[#C1902F] block">

@@ -329,7 +329,7 @@ export default function Show({ test }) {
 
  {/* CSV FORMAT SPECIFICATION */}
  <div className="lg:col-span-5 space-y-4">
- <div className="p-6 rounded-xl bg-white text-white border border-gray-200 space-y-4">
+ <div className="p-6 rounded-xl bg-white border border-gray-200 space-y-4">
  <div className="flex items-center space-x-2">
  <AlertCircle className="h-5 w-5 text-govt-gold-600" />
  <h4 className="text-sm font-extrabold text-gray-900">

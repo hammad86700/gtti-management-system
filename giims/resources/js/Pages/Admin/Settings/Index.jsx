@@ -80,7 +80,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.institute_name}
  onChange={(e) => setData("institute_name", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="e.g. Government Technical Training Institute, Rahim Yar Khan"
  />
  {errors.institute_name && (
@@ -96,7 +96,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.institute_short_name}
  onChange={(e) => setData("institute_short_name", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="e.g. GTTI RYK"
  />
  {errors.institute_short_name && (
@@ -112,7 +112,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.tagline}
  onChange={(e) => setData("tagline", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="e.g. Directorate of Technical Education � TEVTA Punjab"
  />
  {errors.tagline && (
@@ -128,7 +128,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.motto}
  onChange={(e) => setData("motto", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="?????? ?????? ??? ? ??? � Faith, Unity, Discipline"
  />
  </div>
@@ -156,7 +156,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.phone}
  onChange={(e) => setData("phone", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="068-9230123"
  />
  </div>
@@ -169,7 +169,7 @@ export default function Index({ settings = {} }) {
  type="email"
  value={data.email}
  onChange={(e) => setData("email", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="info@gtti.edu.pk"
  />
  </div>
@@ -182,7 +182,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.helpline}
  onChange={(e) => setData("helpline", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="068-9230123 / 068-9230124"
  />
  </div>
@@ -195,7 +195,7 @@ export default function Index({ settings = {} }) {
  type="text"
  value={data.accreditation_text}
  onChange={(e) => setData("accreditation_text", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="PBTE & NAVTTC Accredited"
  />
  </div>
@@ -208,7 +208,7 @@ export default function Index({ settings = {} }) {
  rows="3"
  value={data.address}
  onChange={(e) => setData("address", e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-white focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
+ className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-govt-green-400/50"
  placeholder="Shahbaz Pur Road, Near Sports Complex, Rahim Yar Khan, Punjab, Pakistan"
  />
  </div>

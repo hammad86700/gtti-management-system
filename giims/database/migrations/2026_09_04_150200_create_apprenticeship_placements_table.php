@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['student_profile_id', 'placement_status']);
+            $table->index(['student_profile_id', 'placement_status'], 'appr_place_profile_status_idx');
             $table->index('industry_sector');
         });
     }

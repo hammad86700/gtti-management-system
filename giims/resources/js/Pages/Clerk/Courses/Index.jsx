@@ -16,7 +16,10 @@ import {
     FileText,
     Calendar,
     Sparkles,
-    Upload
+    Upload,
+    Image as ImageIcon,
+    Eye,
+    X
 } from 'lucide-react';
 import Badge from '@/Components/UI/Badge';
 
@@ -24,6 +27,9 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
     const [createModal, setCreateModal] = useState(false);
     const [editModal, setEditModal] = useState(false);
     const [editingCourse, setEditingCourse] = useState(null);
+    const [createAdPreview, setCreateAdPreview] = useState(null);
+    const [editAdPreview, setEditAdPreview] = useState(null);
+    const [viewingAdCourse, setViewingAdCourse] = useState(null);
 
     // Form for creating course
     const createForm = useForm({
@@ -47,6 +53,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         is_published: true,
         is_active: true,
         syllabus_document: null,
+        advertisement_image: null,
     });
 
     // Form for editing course
@@ -72,6 +79,8 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         is_published: true,
         is_active: true,
         syllabus_document: null,
+        advertisement_image: null,
+        remove_advertisement: false,
     });
 
     const handleCreate = (e) => {
@@ -80,6 +89,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             forceFormData: true,
             onSuccess: () => {
                 setCreateModal(false);
+                setCreateAdPreview(null);
                 createForm.reset();
             },
         });
@@ -87,6 +97,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
 
     const handleOpenEdit = (course) => {
         setEditingCourse(course);
+        setEditAdPreview(course.advertisement_image_path ? `/storage/${course.advertisement_image_path}` : null);
         const isFcfs = course.admission_type === 'first_come_first_served' || course.requires_entrance_test === false || course.requires_entrance_test === 0;
         const requiresEntrance = !isFcfs && Boolean(course.requires_entrance_test);
 
@@ -112,6 +123,8 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             is_published: Boolean(course.is_published ?? true),
             is_active: Boolean(course.is_active ?? true),
             syllabus_document: null,
+            advertisement_image: null,
+            remove_advertisement: false,
         });
         setEditModal(true);
     };
@@ -136,6 +149,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             onSuccess: () => {
                 setEditModal(false);
                 setEditingCourse(null);
+                setEditAdPreview(null);
             },
         });
     };
@@ -226,6 +240,17 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                                         <FileText className="h-3 w-3" />
                                                         <span>Syllabus Uploaded</span>
                                                     </span>
+                                                )}
+                                                {course.advertisement_image_path && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setViewingAdCourse(course)}
+                                                        className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full cursor-pointer transition hover:bg-emerald-900/60"
+                                                        title="Click to view course advertisement flyer"
+                                                    >
+                                                        <ImageIcon className="h-3 w-3" />
+                                                        <span>Ad Flyer</span>
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>
@@ -600,6 +625,58 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 />
                             </div>
 
+                            {/* Course Advertisement / Promo Flyer Upload */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="block font-bold text-slate-200 text-xs flex items-center space-x-1.5">
+                                        <ImageIcon className="h-4 w-4 text-amber-400" />
+                                        <span>Course Advertisement Flyer / Poster (Optional)</span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">JPG, PNG, WebP (Max 5MB)</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400">
+                                    Upload an official promotional flyer, intake banner, or admission poster. It will be showcased prominently on the course catalog and public homepage.
+                                </p>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            createForm.setData('advertisement_image', file);
+                                            setCreateAdPreview(URL.createObjectURL(file));
+                                        } else {
+                                            createForm.setData('advertisement_image', null);
+                                            setCreateAdPreview(null);
+                                        }
+                                    }}
+                                    className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700 cursor-pointer"
+                                />
+                                {createAdPreview && (
+                                    <div className="relative mt-2 p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center space-x-3">
+                                        <img
+                                            src={createAdPreview}
+                                            alt="Ad Preview"
+                                            className="h-20 w-32 object-cover rounded-lg border border-slate-700"
+                                        />
+                                        <div className="flex-1">
+                                            <span className="text-xs font-bold text-white block">Ad Flyer Selected</span>
+                                            <span className="text-[10px] text-emerald-400 font-mono">Ready to upload on save</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                createForm.setData('advertisement_image', null);
+                                                setCreateAdPreview(null);
+                                            }}
+                                            className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs font-bold"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Live Public Sync Toggle */}
                             <div className="flex items-center space-x-2 pt-1">
                                 <input
@@ -899,6 +976,78 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 />
                             </div>
 
+                            {/* Course Advertisement / Promo Flyer Upload */}
+                            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="block font-bold text-slate-200 text-xs flex items-center space-x-1.5">
+                                        <ImageIcon className="h-4 w-4 text-amber-400" />
+                                        <span>Course Advertisement Flyer / Poster (Optional)</span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">JPG, PNG, WebP (Max 5MB)</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400">
+                                    Upload or replace the official course flyer/banner displayed to applicants on the live website.
+                                </p>
+
+                                {editAdPreview && !editForm.data.remove_advertisement ? (
+                                    <div className="relative p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center space-x-3">
+                                        <img
+                                            src={editAdPreview}
+                                            alt="Current Ad Flyer"
+                                            className="h-20 w-32 object-cover rounded-lg border border-slate-700 cursor-pointer hover:opacity-90"
+                                            onClick={() => setViewingAdCourse({ name: editForm.data.name, advertisement_image_path: editAdPreview.replace('/storage/', '') })}
+                                        />
+                                        <div className="flex-1 space-y-1">
+                                            <span className="text-xs font-bold text-white block">Active Advertisement Poster</span>
+                                            <div className="flex items-center space-x-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewingAdCourse({ name: editForm.data.name, advertisement_image_path: editAdPreview.replace('/storage/', '') })}
+                                                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center space-x-1 cursor-pointer"
+                                                >
+                                                    <Eye className="h-3 w-3" />
+                                                    <span>View Full Size</span>
+                                                </button>
+                                                <span className="text-slate-600">•</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        editForm.setData('advertisement_image', null);
+                                                        editForm.setData('remove_advertisement', true);
+                                                        setEditAdPreview(null);
+                                                    }}
+                                                    className="text-[11px] text-rose-400 hover:text-rose-300 font-bold flex items-center space-x-1 cursor-pointer"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                    <span>Remove Ad Flyer</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    editForm.setData('advertisement_image', file);
+                                                    editForm.setData('remove_advertisement', false);
+                                                    setEditAdPreview(URL.createObjectURL(file));
+                                                }
+                                            }}
+                                            className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700 cursor-pointer"
+                                        />
+                                        {editForm.data.remove_advertisement && (
+                                            <span className="text-[10px] text-amber-400 block mt-1 font-mono">
+                                                * Existing ad will be removed on save. Select a file above if you want to replace it.
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Live Public Sync Toggle */}
                             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
                                 <div>
@@ -957,6 +1106,50 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                 </div>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* View Course Advertisement Poster Lightbox Modal */}
+            {viewingAdCourse && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative max-w-2xl w-full bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                            <div className="flex items-center space-x-2">
+                                <ImageIcon className="h-5 w-5 text-amber-400" />
+                                <div>
+                                    <h3 className="font-extrabold text-sm text-white">{viewingAdCourse.name}</h3>
+                                    <p className="text-[10px] text-slate-400">Official Course Advertisement Flyer</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setViewingAdCourse(null)}
+                                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950/60">
+                            <img
+                                src={`/storage/${viewingAdCourse.advertisement_image_path}`}
+                                alt={`${viewingAdCourse.name} Flyer`}
+                                className="max-h-[70vh] w-auto max-w-full object-contain rounded-xl shadow-lg border border-slate-800"
+                            />
+                        </div>
+
+                        <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs">
+                            <span className="text-[11px] text-slate-400">Shown to students on public course catalog</span>
+                            <a
+                                href={`/storage/${viewingAdCourse.advertisement_image_path}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition"
+                            >
+                                Open Full Image
+                            </a>
+                        </div>
                     </div>
                 </div>
             )}

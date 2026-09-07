@@ -66,6 +66,7 @@ class CourseManagementController extends Controller
             'is_active' => 'boolean',
             'is_published' => 'boolean',
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
         ]);
 
         $isFcfs = ($validated['admission_type'] === 'first_come_first_served');
@@ -74,6 +75,11 @@ class CourseManagementController extends Controller
         $syllabusPath = null;
         if ($request->hasFile('syllabus_document')) {
             $syllabusPath = $request->file('syllabus_document')->store('syllabi', 'public');
+        }
+
+        $adPath = null;
+        if ($request->hasFile('advertisement_image')) {
+            $adPath = $request->file('advertisement_image')->store('course_advertisements', 'public');
         }
 
         $course = Course::create([
@@ -97,6 +103,7 @@ class CourseManagementController extends Controller
             'is_active' => $request->boolean('is_active', true),
             'is_published' => $request->boolean('is_published', true),
             'syllabus_document_path' => $syllabusPath,
+            'advertisement_image_path' => $adPath,
         ]);
 
         if (function_exists('activity')) {
@@ -137,6 +144,8 @@ class CourseManagementController extends Controller
             'is_active' => 'nullable',
             'is_published' => 'nullable',
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+            'remove_advertisement' => 'nullable',
         ]);
 
         $isFcfs = ($validated['admission_type'] === 'first_come_first_served');
@@ -145,6 +154,19 @@ class CourseManagementController extends Controller
         $syllabusPath = $course->syllabus_document_path;
         if ($request->hasFile('syllabus_document')) {
             $syllabusPath = $request->file('syllabus_document')->store('syllabi', 'public');
+        }
+
+        $adPath = $course->advertisement_image_path;
+        if ($request->boolean('remove_advertisement')) {
+            if ($adPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($adPath)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($adPath);
+            }
+            $adPath = null;
+        } elseif ($request->hasFile('advertisement_image')) {
+            if ($adPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($adPath)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($adPath);
+            }
+            $adPath = $request->file('advertisement_image')->store('course_advertisements', 'public');
         }
 
         $course->update([
@@ -168,6 +190,7 @@ class CourseManagementController extends Controller
             'is_active' => $request->boolean('is_active', true),
             'is_published' => $request->has('is_published') ? $request->boolean('is_published') : $course->is_published,
             'syllabus_document_path' => $syllabusPath,
+            'advertisement_image_path' => $adPath,
         ]);
 
         return redirect()->back()->with('success', "Course '{$course->name}' updated successfully.");

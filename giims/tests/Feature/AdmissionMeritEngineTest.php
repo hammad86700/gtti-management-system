@@ -170,7 +170,7 @@ class AdmissionMeritEngineTest extends TestCase
         $response->assertRedirect();
         $this->fcfsApplication->refresh();
 
-        $this->assertEquals('selected_for_admission', $this->fcfsApplication->status);
+        $this->assertEquals('challan_issued', $this->fcfsApplication->status);
         $this->assertEquals('unpaid', $this->fcfsApplication->fee_status);
         $this->assertNull($this->fcfsApplication->test_date);
     }

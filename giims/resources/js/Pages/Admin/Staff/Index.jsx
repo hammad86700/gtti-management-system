@@ -69,50 +69,50 @@ export default function Index({ staff = [], roles = [] }) {
  switch (slug) {
  case 'super-admin':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-950/30">
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-purple-50 text-purple-700 border border-purple-200 shadow-xs">
  <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
  <span>{name}</span>
  </span>
  );
  case 'principal':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-govt-green-500/15 text-govt-green-400 border border-govt-green-200 shadow-sm shadow-govt">
- <Award className="h-3.5 w-3.5 text-govt-green-500" />
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
+ <Award className="h-3.5 w-3.5 text-emerald-600" />
  <span>{name}</span>
  </span>
  );
  case 'trade-incharge':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-950/30">
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-blue-50 text-blue-700 border border-blue-200 shadow-xs">
  <Layers className="h-3.5 w-3.5 text-blue-600" />
  <span>{name}</span>
  </span>
  );
  case 'teacher':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-govt-gold-50 text-govt-gold border border-govt-gold-200 shadow-sm shadow-amber-950/30">
- <GraduationCap className="h-3.5 w-3.5 text-govt-gold-600" />
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-amber-50 text-amber-800 border border-amber-200 shadow-xs">
+ <GraduationCap className="h-3.5 w-3.5 text-amber-600" />
  <span>{name}</span>
  </span>
  );
  case 'admission-clerk':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-950/30">
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-cyan-50 text-cyan-800 border border-cyan-200 shadow-xs">
  <UserCheck className="h-3.5 w-3.5 text-cyan-600" />
  <span>{name}</span>
  </span>
  );
  case 'security-officer':
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-rose-500/15 text-rose-300 border border-rose-200 shadow-sm shadow-rose-950/30">
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
  <Shield className="h-3.5 w-3.5 text-rose-600" />
  <span>{name}</span>
  </span>
  );
  default:
  return (
- <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-govt-cream-300 text-gray-600 border border-gray-200">
- <Shield className="h-3.5 w-3.5 text-gray-500" />
+ <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+ <Shield className="h-3.5 w-3.5 text-slate-500" />
  <span>{name}</span>
  </span>
  );
@@ -165,7 +165,7 @@ export default function Index({ staff = [], roles = [] }) {
 
  <div className="hidden sm:flex items-center space-x-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-3.5 py-1.5 rounded-full shadow-sm">
  <span className="h-2 w-2 rounded-full bg-govt-green-400 animate-ping" />
- <span>{staff.length} Active Staff Members</span>
+ <span>{staff.length} Active Staff {staff.length === 1 ? 'Member' : 'Members'}</span>
  </div>
  </div>
  }
@@ -246,7 +246,7 @@ export default function Index({ staff = [], roles = [] }) {
  </div>
  )}
 
- <form onSubmit={handleSubmit} className="space-y-6">
+ <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
  {/* Full Name */}
  <div>
@@ -266,10 +266,11 @@ export default function Index({ staff = [], roles = [] }) {
  value={data.name}
  onChange={(e) => setData('name', e.target.value)}
  placeholder="e.g. Engr. Tariq Mehmood"
- className={`w-full pl-10 pr-4 py-2.5 bg-govt-cream-300 border text-gray-900 placeholder-slate-500 rounded-xl text-sm transition focus:outline-none focus:ring-2 ${
+ autoComplete="off"
+ className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border text-slate-900 placeholder-slate-400 rounded-xl text-sm transition focus:outline-none focus:bg-white focus:ring-2 ${
  errors.name
  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
- : 'border-gray-200 focus:border-govt-green-500 focus:ring-govt-green-400/20'
+ : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-500/20'
  }`}
  required
  />
@@ -300,10 +301,11 @@ export default function Index({ staff = [], roles = [] }) {
  value={data.email}
  onChange={(e) => setData('email', e.target.value)}
  placeholder="e.g. tariq@gtti.edu.pk"
- className={`w-full pl-10 pr-4 py-2.5 bg-govt-cream-300 border text-gray-900 placeholder-slate-500 rounded-xl text-sm transition focus:outline-none focus:ring-2 ${
+ autoComplete="off"
+ className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border text-slate-900 placeholder-slate-400 rounded-xl text-sm transition focus:outline-none focus:bg-white focus:ring-2 ${
  errors.email
  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
- : 'border-gray-200 focus:border-govt-green-500 focus:ring-govt-green-400/20'
+ : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-500/20'
  }`}
  required
  />
@@ -334,10 +336,11 @@ export default function Index({ staff = [], roles = [] }) {
  value={data.password}
  onChange={(e) => setData('password', e.target.value)}
  placeholder="Min. 8 characters"
- className={`w-full pl-10 pr-10 py-2.5 bg-govt-cream-300 border text-gray-900 placeholder-slate-500 rounded-xl text-sm transition focus:outline-none focus:ring-2 ${
+ autoComplete="new-password"
+ className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 border text-slate-900 placeholder-slate-400 rounded-xl text-sm transition focus:outline-none focus:bg-white focus:ring-2 ${
  errors.password
  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
- : 'border-gray-200 focus:border-govt-green-500 focus:ring-govt-green-400/20'
+ : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-500/20'
  }`}
  required
  />
@@ -374,18 +377,18 @@ export default function Index({ staff = [], roles = [] }) {
  id="staff-role-select"
  value={data.role_id}
  onChange={(e) => setData('role_id', e.target.value)}
- className={`w-full pl-10 pr-8 py-2.5 bg-govt-cream-300 border text-gray-900 rounded-xl text-sm transition focus:outline-none focus:ring-2 appearance-none cursor-pointer ${
+ className={`w-full pl-10 pr-8 py-2.5 bg-slate-50 border text-slate-900 font-medium rounded-xl text-sm transition focus:outline-none focus:bg-white focus:ring-2 appearance-none cursor-pointer ${
  errors.role_id
  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
- : 'border-gray-200 focus:border-govt-green-500 focus:ring-govt-green-400/20'
+ : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-500/20'
  }`}
  required
  >
- <option value="" disabled>
+ <option value="" disabled className="text-slate-400 bg-white font-normal">
  Select an institutional role...
  </option>
  {roles.map((role) => (
- <option key={role.id} value={role.id} className="bg-white text-white">
+ <option key={role.id} value={role.id} className="bg-white text-slate-900 font-medium py-1.5">
  {role.name} ({role.slug})
  </option>
  ))}
@@ -485,16 +488,16 @@ export default function Index({ staff = [], roles = [] }) {
  id="staff-role-filter-select"
  value={selectedRoleFilter}
  onChange={(e) => setSelectedRoleFilter(e.target.value)}
- className="pl-3 pr-8 py-2 bg-govt-cream-300 border border-gray-200 text-gray-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-govt-green-400/20 focus:border-govt-green-500 transition cursor-pointer appearance-none"
+ className="pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition cursor-pointer appearance-none"
  >
- <option value="all">All Roles</option>
+ <option value="all" className="bg-white text-slate-900 font-medium">All Roles</option>
  {roles.map((role) => (
- <option key={role.id} value={role.slug}>
+ <option key={role.id} value={role.slug} className="bg-white text-slate-900 font-medium">
  {role.name}
  </option>
  ))}
  </select>
- <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-gray-500">
+ <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400">
  <Filter className="h-3.5 w-3.5" />
  </div>
  </div>
@@ -503,8 +506,8 @@ export default function Index({ staff = [], roles = [] }) {
 
  {/* Data Table */}
  <div className="overflow-x-auto">
- <table className="w-full text-left text-sm text-gray-600">
- <thead className="bg-govt-cream-300/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200">
+ <table className="w-full text-left text-sm text-slate-600">
+ <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
  <tr>
  <th scope="col" className="py-3.5 px-6">
  Staff Member
@@ -520,24 +523,24 @@ export default function Index({ staff = [], roles = [] }) {
  </th>
  </tr>
  </thead>
- <tbody className="divide-y divide-gray-100/60">
+ <tbody className="divide-y divide-slate-100">
  {filteredStaff.length > 0 ? (
  filteredStaff.map((member) => (
  <tr
  key={member.id}
- className="hover:bg-govt-cream-300/40 transition duration-150 group"
+ className="hover:bg-slate-50/80 transition duration-150 group"
  >
  {/* Name & Avatar */}
  <td className="py-4 px-6">
  <div className="flex items-center space-x-3.5">
- <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600/30 to-purple-600/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs shadow-inner shrink-0 group-hover:scale-105 transition transform">
+ <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold text-xs shadow-xs shrink-0 group-hover:scale-105 transition transform">
  {getInitials(member.name)}
  </div>
  <div className="min-w-0">
- <div className="font-semibold text-gray-800 group-hover:text-indigo-300 transition truncate">
+ <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition truncate">
  {member.name}
  </div>
- <div className="text-[11px] text-gray-500">
+ <div className="text-[11px] font-mono text-slate-500">
  ID: #{member.id}
  </div>
  </div>

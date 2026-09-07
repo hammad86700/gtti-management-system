@@ -49,7 +49,7 @@ class Enrollment extends Model
      */
     public function studentProfile(): BelongsTo
     {
-        return $this->belongsTo(StudentProfile::class);
+        return $this->belongsTo(StudentProfile::class)->withTrashed();
     }
 
     /**

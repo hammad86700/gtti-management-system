@@ -85,9 +85,12 @@ export default function PrintFeeChallan({ voucher }) {
                             {/* Copy Header Watermark */}
                             <div className="border-b-2 border-slate-900 pb-2 text-center space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[8px] font-black uppercase tracking-tighter text-slate-700">
-                                        TEVTA PUNJAB
-                                    </span>
+                                    <div className="flex items-center space-x-1.5">
+                                        <img src="/images/tevta-logo.png" alt="TEVTA" className="h-5 w-5 object-contain" />
+                                        <span className="text-[8px] font-black uppercase tracking-tighter text-slate-700">
+                                            TEVTA PUNJAB
+                                        </span>
+                                    </div>
                                     <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-black text-[9px] uppercase tracking-wider">
                                         {copy.label}
                                     </span>

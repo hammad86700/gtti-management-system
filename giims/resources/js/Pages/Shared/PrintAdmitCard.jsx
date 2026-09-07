@@ -58,9 +58,8 @@ export default function PrintAdmitCard({ cards = [], isBatch = false, batchTitle
                         <div>
                             <div className="border-b-2 border-black pb-3 text-center relative">
                                 <div className="flex items-center justify-between">
-                                    <div className="w-16 h-16 border-2 border-dashed border-slate-400 rounded-md flex flex-col items-center justify-center text-center p-1">
-                                        <span className="text-[9px] font-black uppercase text-slate-700">TEVTA</span>
-                                        <span className="text-[8px] text-slate-500 leading-tight">Govt of Punjab</span>
+                                    <div className="w-16 h-16 rounded-md flex flex-col items-center justify-center text-center p-0.5">
+                                        <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
                                     </div>
 
                                     <div className="flex-1 px-4">

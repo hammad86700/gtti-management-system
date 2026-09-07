@@ -308,7 +308,7 @@ export default function Index({ clearances = [] }) {
  type="button"
  disabled={updatingId === c.id}
  onClick={() => handleSaveStatuses(c.id)}
- className="px-3 py-1 rounded-xl bg-white hover:bg-govt-green :bg-govt-green text-white font-bold text-[10px] transition shadow-sm inline-flex items-center space-x-1"
+ className="px-3 py-1 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-[10px] transition shadow-sm inline-flex items-center space-x-1"
  >
  <Save className="h-3 w-3" />
  <span>{updatingId === c.id ? 'Saving...' : 'Save Dues'}</span>

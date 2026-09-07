@@ -324,8 +324,8 @@ export default function AuthenticatedLayout({ header, children }) {
             {isAdmin && (isTeacherRoute || isStudentRoute || isSecurityRoute) && (
                 <div className="bg-[#0B3B24] border-b border-emerald-600/50 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-white shadow-md z-50 sticky top-0">
                     <div className="flex items-center space-x-2.5">
-                        <div className="p-1 rounded-md bg-emerald-500/20 text-emerald-300">
-                            <Shield className="h-4 w-4" />
+                        <div className="h-7 w-7 rounded-lg bg-white p-0.5 shadow-sm border border-emerald-400/40 flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <span className="font-extrabold uppercase tracking-wider text-[11px] text-emerald-300 mr-2">
@@ -363,8 +363,8 @@ export default function AuthenticatedLayout({ header, children }) {
                 {/* Logo & Institute Header */}
                 <div className="h-18 px-5 flex items-center justify-between border-b border-emerald-900/60 shrink-0 bg-[#082D1B]/60">
                     <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shadow-inner shrink-0">
-                            <Shield className="h-5 w-5 text-emerald-400" />
+                        <div className="h-11 w-11 rounded-xl bg-white p-1 shadow-md border border-emerald-400/40 flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
                         </div>
                         <div className="min-w-0">
                             <div className="flex items-center space-x-1.5">
@@ -481,7 +481,10 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             <Menu className="h-5 w-5" />
                         </button>
-                        <div className="flex items-center space-x-2 text-xs font-medium">
+                        <div className="flex items-center space-x-2.5 text-xs font-medium">
+                            <div className="h-7 w-7 rounded-lg bg-white p-0.5 border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
+                                <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+                            </div>
                             <span className="font-bold text-[#0B3B24] tracking-tight">GTTI RYK</span>
                             <span className="text-slate-300">•</span>
                             <span className="text-slate-600 font-semibold hidden sm:inline">{defaultBreadcrumb}</span>

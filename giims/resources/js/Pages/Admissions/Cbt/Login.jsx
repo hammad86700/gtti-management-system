@@ -31,8 +31,8 @@ export default function Login() {
             <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-8 py-4">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-2xl bg-govt-green/20 border border-govt-green/40 flex items-center justify-center text-govt-green shrink-0 shadow-inner">
-                            <Computer className="h-5 w-5 text-emerald-400" />
+                        <div className="h-11 w-11 rounded-2xl bg-white p-1 shadow-md border border-emerald-400/40 flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
@@ -78,8 +78,8 @@ export default function Login() {
                     {/* Entry Form Card */}
                     <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-6 sm:p-10 space-y-6 relative overflow-hidden">
                         <div className="space-y-2 text-center">
-                            <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-1">
-                                <ShieldCheck className="h-8 w-8" />
+                            <div className="inline-flex p-2 rounded-2xl bg-white border border-slate-200 mb-1 shadow-md">
+                                <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-12 w-12 object-contain" />
                             </div>
                             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                                 Candidate Lab Verification

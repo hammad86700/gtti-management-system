@@ -62,14 +62,12 @@ export default function PrintEntranceAdmitCard({ card }) {
                         {/* 1. OFFICIAL INSTITUTIONAL & BOARD HEADER */}
                         <div className="border-b-2 border-black pb-3 text-center relative">
                             <div className="flex items-center justify-between">
-                                {/* Left: Govt of Punjab Seal Text */}
-                                <div className="text-left w-28 shrink-0">
-                                    <div className="h-14 w-14 rounded-full border-2 border-emerald-800 flex items-center justify-center p-1 bg-emerald-50">
-                                        <span className="text-[9px] font-black text-emerald-900 text-center uppercase tracking-tighter leading-tight">
-                                            GOVT OF PUNJAB
-                                        </span>
+                                {/* Left: Govt of Punjab TEVTA Seal */}
+                                <div className="text-left w-28 shrink-0 flex flex-col items-start">
+                                    <div className="h-16 w-16 p-0.5 flex items-center justify-center">
+                                        <img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
                                     </div>
-                                    <span className="text-[8px] font-bold text-slate-600 uppercase block mt-1 tracking-widest">
+                                    <span className="text-[8px] font-black text-slate-700 uppercase block mt-0.5 tracking-widest">
                                         TEVTA PUNJAB
                                     </span>
                                 </div>

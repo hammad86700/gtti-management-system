@@ -93,10 +93,10 @@ export default function TakeExam({
             {/* Top Fixed Candidate & Timer Header */}
             <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 shadow-xl">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    {/* Candidate Info */}
+                    {/* Candidate Info & Official TEVTA Crest */}
                     <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 font-mono font-black text-sm">
-                            {candidate.name.charAt(0)}
+                        <div className="h-10 w-10 rounded-xl bg-white p-0.5 border border-emerald-400/40 shadow-sm flex items-center justify-center shrink-0">
+                            <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <div className="flex items-center space-x-2">

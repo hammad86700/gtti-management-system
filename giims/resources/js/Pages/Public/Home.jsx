@@ -113,11 +113,10 @@ export default function Home({ activeCampaign, departments = [], publishedCourse
  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
  {/* Official Emblems & Institute Title */}
  <div className="flex items-center space-x-4 text-center md:text-left">
- {/* Government Emblem Placeholder Badge */}
- <div className="h-16 w-16 rounded-full bg-[#00401A] text-govt-gold-600 border-2 border-amber-400 flex flex-col items-center justify-center p-1 shadow shrink-0">
- <ShieldCheck className="h-8 w-8 text-govt-gold" />
- <span className="text-[8px] font-black tracking-tighter uppercase text-white">TEVTA</span>
- </div>
+                        {/* Official TEVTA Government Emblem */}
+                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white border-2 border-emerald-800/20 p-1.5 shadow-md flex items-center justify-center shrink-0 hover:scale-105 transition duration-200">
+                            <img src="/images/tevta-logo.png" alt="TEVTA Government of the Punjab" className="h-full w-full object-contain" />
+                        </div>
 
  <div>
  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
@@ -267,9 +266,9 @@ export default function Home({ activeCampaign, departments = [], publishedCourse
  <div className="lg:col-span-4">
  <div className="rounded-2xl bg-[#00401A] text-white p-6 border-2 border-[#002B11] shadow-md space-y-4">
  <div className="flex items-center space-x-3 pb-3 border-b border-emerald-800">
- <div className="h-10 w-10 rounded-full bg-white text-[#00401A] flex items-center justify-center font-black">
- TEVTA
- </div>
+ <div className="h-12 w-12 rounded-xl bg-white p-1 shadow flex items-center justify-center shrink-0 border border-emerald-400/30">
+									<img src="/images/tevta-logo.png" alt="TEVTA Punjab" className="h-full w-full object-contain" />
+								</div>
  <div>
  <h3 className="font-extrabold text-sm text-white">Institutional Highlights</h3>
  <p className="text-[11px] text-emerald-200">District Rahim Yar Khan</p>
@@ -675,11 +674,11 @@ export default function Home({ activeCampaign, departments = [], publishedCourse
  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
  <div className="space-y-3">
  <div className="flex items-center space-x-2.5">
- <div className="h-9 w-9 rounded-full bg-white text-[#00401A] flex items-center justify-center font-black">
- GTTI
- </div>
+ <div className="h-11 w-11 rounded-xl bg-white p-1 shadow flex items-center justify-center shrink-0">
+									<img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+								</div>
  <div>
- <h4 className="font-bold text-gray-900 text-sm">GTTI Rahim Yar Khan</h4>
+ <h4 className="font-bold text-white text-sm">GTTI Rahim Yar Khan</h4>
  <p className="text-[10px] text-govt-green-400">Govt. Technical Training Institute</p>
  </div>
  </div>

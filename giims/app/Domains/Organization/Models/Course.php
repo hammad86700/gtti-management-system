@@ -68,7 +68,8 @@ class Course extends Model
         'formatted_duration',
         'remaining_seats',
         'is_admission_full',
-        'current_intake_count'
+        'current_intake_count',
+        'advertisement_url',
     ];
 
     /**
@@ -101,6 +102,14 @@ class Course extends Model
         }
 
         return "{$val} " . ucfirst($type);
+    }
+
+    /**
+     * Get the public URL for the course advertisement poster/flyer.
+     */
+    public function getAdvertisementUrlAttribute(): ?string
+    {
+        return $this->advertisement_image_path ? asset('storage/' . $this->advertisement_image_path) : null;
     }
 
     /**

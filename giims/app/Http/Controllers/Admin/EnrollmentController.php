@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -69,15 +70,46 @@ class EnrollmentController extends Controller
             $enrollmentNumber = 'GTTI-' . date('Y') . '-' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
         }
 
-        if (empty($application->studentProfile->registration_number)) {
-            $application->studentProfile->update([
+        // Retrieve and safeguard student profile
+        $profile = $application->studentProfile;
+        if (!$profile && $application->student_profile_id) {
+            $profile = StudentProfile::withTrashed()->find($application->student_profile_id);
+        }
+
+        if ($profile) {
+            if ($profile->trashed()) {
+                $profile->restore();
+            }
+            if ($profile->user?->trashed()) {
+                $profile->user->restore();
+            }
+        } else {
+            // Create fallback user & student profile if none exists
+            $user = User::create([
+                'name' => 'Candidate ' . $application->application_number,
+                'email' => 'student_' . $application->id . '_' . strtolower(Str::random(4)) . '@gtti.edu.pk',
+                'password' => Hash::make('password123'),
+                'status' => 'active',
+            ]);
+            $profile = StudentProfile::create([
+                'user_id' => $user->id,
+                'registration_number' => $enrollmentNumber,
+                'father_name' => 'N/A',
+                'status' => 'active',
+            ]);
+            $application->update(['student_profile_id' => $profile->id]);
+            $application->setRelation('studentProfile', $profile);
+        }
+
+        if (empty($profile->registration_number)) {
+            $profile->update([
                 'registration_number' => $enrollmentNumber,
             ]);
         }
 
         // Create official permanent enrollment record
         Enrollment::create([
-            'student_profile_id' => $application->student_profile_id,
+            'student_profile_id' => $profile->id,
             'course_id' => $application->course_id,
             'batch_id' => $validated['batch_id'],
             'enrollment_number' => $enrollmentNumber,
@@ -90,11 +122,11 @@ class EnrollmentController extends Controller
         ]);
 
         $studentRole = Role::where('slug', 'student')->first();
-        if ($studentRole && $application->studentProfile->user) {
-            $application->studentProfile->user->roles()->syncWithoutDetaching([$studentRole->id]);
+        if ($studentRole && $profile->user) {
+            $profile->user->roles()->syncWithoutDetaching([$studentRole->id]);
         }
 
-        $userName = $application->studentProfile->user?->name ?? 'Candidate';
+        $userName = $profile->user?->name ?? 'Candidate';
 
         return redirect()->back()->with('success', "Student {$userName} successfully enrolled into batch. Official Student ID: {$enrollmentNumber}.");
     }
@@ -237,7 +269,7 @@ class EnrollmentController extends Controller
 
         $enrollment->delete();
 
-        if ($profile && $profile->enrollments()->count() === 0) {
+        if ($profile && $profile->enrollments()->count() === 0 && $profile->applications()->count() === 0) {
             $profile->delete();
             $user?->delete();
         }

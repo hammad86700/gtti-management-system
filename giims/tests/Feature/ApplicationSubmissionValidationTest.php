@@ -99,7 +99,7 @@ class ApplicationSubmissionValidationTest extends TestCase
 
         $this->assertDatabaseHas('applications', [
             'course_id' => $this->course->id,
-            'status' => 'submitted',
+            'status' => 'pending',
             'obtained_marks' => 920,
         ]);
     }

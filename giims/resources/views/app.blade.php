@@ -6,6 +6,10 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Favicon / Institutional Crest -->
+        <link rel="icon" type="image/png" href="/images/tevta-logo.png">
+        <link rel="apple-touch-icon" href="/images/tevta-logo.png">
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=playfair-display:700,800&display=swap" rel="stylesheet" />

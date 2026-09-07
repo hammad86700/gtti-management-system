@@ -35,8 +35,11 @@ export default function PrintMeritGazette({ course, candidates = [], generatedAt
             {/* Printable Gazette Paper Container */}
             <div className="max-w-7xl mx-auto bg-white p-8 sm:p-12 rounded-3xl border border-slate-200 print:border-0 print:p-0 print:shadow-none shadow-xl space-y-6">
                 {/* Official Institutional Letterhead */}
-                <div className="text-center border-b-2 border-slate-900 pb-6 relative">
-                    <div className="space-y-1">
+                <div className="border-b-2 border-slate-900 pb-6 relative flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                    <div className="h-20 w-20 shrink-0 flex items-center justify-center">
+                        <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
+                    </div>
+                    <div className="space-y-1 text-center flex-1">
                         <span className="text-xs font-black uppercase tracking-widest text-slate-500 font-mono">
                             TECHNICAL EDUCATION & VOCATIONAL TRAINING AUTHORITY (TEVTA) PUNJAB
                         </span>

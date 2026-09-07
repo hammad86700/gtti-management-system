@@ -19,9 +19,9 @@ export default function Result({ attempt, exam, matric_component = 0, test_compo
             <div className="max-w-2xl mx-auto w-full space-y-6 my-auto">
                 {/* Result Card */}
                 <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-6 sm:p-10 space-y-6 relative overflow-hidden text-center">
-                    {/* Badge */}
-                    <div className="inline-flex p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto shadow-lg">
-                        <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+                    {/* Official TEVTA Institutional Crest */}
+                    <div className="inline-flex p-2.5 rounded-2xl bg-white border border-slate-200 shadow-xl mx-auto">
+                        <img src="/images/tevta-logo.png" alt="TEVTA" className="h-16 w-16 object-contain" />
                     </div>
 
                     <div className="space-y-1">

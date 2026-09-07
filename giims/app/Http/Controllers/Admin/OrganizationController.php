@@ -66,13 +66,20 @@ class OrganizationController extends Controller
             'name' => 'required|string|max:255',
             'entry_level' => 'required|string|max:100',
             'is_active' => 'nullable|boolean',
+            'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
         ]);
+
+        $adPath = null;
+        if ($request->hasFile('advertisement_image')) {
+            $adPath = $request->file('advertisement_image')->store('course_advertisements', 'public');
+        }
 
         Course::create([
             'trade_id' => $validated['trade_id'],
             'name' => $validated['name'],
             'entry_level' => $validated['entry_level'],
             'is_active' => $validated['is_active'] ?? true,
+            'advertisement_image_path' => $adPath,
         ]);
 
         return redirect()->back()->with('success', "Course '{$validated['name']}' created successfully.");
@@ -87,13 +94,29 @@ class OrganizationController extends Controller
             'name' => 'required|string|max:255',
             'entry_level' => 'required|string|max:100',
             'is_active' => 'nullable|boolean',
+            'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+            'remove_advertisement' => 'nullable',
         ]);
+
+        $adPath = $course->advertisement_image_path;
+        if ($request->boolean('remove_advertisement')) {
+            if ($adPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($adPath)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($adPath);
+            }
+            $adPath = null;
+        } elseif ($request->hasFile('advertisement_image')) {
+            if ($adPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($adPath)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($adPath);
+            }
+            $adPath = $request->file('advertisement_image')->store('course_advertisements', 'public');
+        }
 
         $course->update([
             'trade_id' => $validated['trade_id'],
             'name' => $validated['name'],
             'entry_level' => $validated['entry_level'],
             'is_active' => $validated['is_active'] ?? true,
+            'advertisement_image_path' => $adPath,
         ]);
 
         return redirect()->back()->with('success', "Course '{$course->name}' updated successfully.");

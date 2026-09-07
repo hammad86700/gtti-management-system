@@ -273,7 +273,7 @@ export default function Index({ enrollment, lessons = [], assignments = [] }) {
  <button
  type="button"
  onClick={() => handleOpenSubmit(isSubmitting ? null : assignment.id)}
- className="px-4 py-1.5 rounded-xl bg-white hover:bg-govt-green :bg-govt-green text-white font-bold text-xs transition flex items-center space-x-1.5 shadow-sm"
+ className="px-4 py-1.5 rounded-xl bg-govt-green hover:bg-govt-green-600 text-white font-bold text-xs transition flex items-center space-x-1.5 shadow-sm"
  >
  <UploadCloud className="h-3.5 w-3.5" />
  <span>{hasSubmitted ? 'Resubmit / Edit Work' : 'Submit Coursework'}</span>

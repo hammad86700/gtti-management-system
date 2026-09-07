@@ -90,7 +90,7 @@ class User extends Authenticatable
      */
     public function studentProfile(): HasOne
     {
-        return $this->hasOne(StudentProfile::class);
+        return $this->hasOne(StudentProfile::class)->withTrashed();
     }
 
     /**

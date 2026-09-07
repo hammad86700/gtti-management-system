@@ -109,8 +109,8 @@ export default function Index({ enrollment, clearance, certificates = [] }) {
  >
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-govt-gold-200 print:border-black">
  <div className="flex items-center space-x-3">
- <div className="h-12 w-12 rounded-2xl bg-govt-gold-50 text-amber-600 border border-govt-gold-200 flex items-center justify-center font-bold print:hidden">
- <Award className="h-7 w-7" />
+ <div className="h-14 w-14 rounded-2xl bg-white p-1 border border-govt-gold-200 flex items-center justify-center font-bold shadow-sm shrink-0">
+ <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
  </div>
  <div>
  <span className="text-[10px] uppercase tracking-widest font-black text-amber-600 print:text-[#00401A]">
@@ -153,7 +153,7 @@ export default function Index({ enrollment, clearance, certificates = [] }) {
  <button
  type="button"
  onClick={() => window.print()}
- className="px-4 py-2 rounded-xl bg-white hover:bg-amber-600 :bg-amber-600 text-white font-bold transition flex items-center space-x-1.5 shadow-sm print:hidden"
+ className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition flex items-center space-x-1.5 shadow-sm print:hidden"
  >
  <Printer className="h-3.5 w-3.5" />
  <span>Print Certificate</span>

@@ -7,11 +7,11 @@ export default function GuestLayout({ children }) {
  {/* Gold accent bar at top */}
  <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-govt-gold-400 via-govt-gold to-govt-gold-400 z-50" />
 
- <div className="mb-2">
- <Link href="/">
- <ApplicationLogo className="h-20 w-20 text-govt-green" />
- </Link>
- </div>
+            <div className="mb-3">
+                <Link href="/" className="inline-flex items-center justify-center p-2 rounded-2xl bg-white shadow-md border border-emerald-100/80 hover:shadow-lg hover:scale-105 transition duration-200">
+                    <ApplicationLogo className="h-24 w-24 object-contain" />
+                </Link>
+            </div>
 
  <p className="text-sm font-semibold text-govt-green mb-1 tracking-wide">GIIMS Portal</p>
  <p className="text-xs text-gray-500 mb-6">Govt. Technical Training Institute, Rahim Yar Khan</p>
