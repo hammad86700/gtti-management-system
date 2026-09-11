@@ -52,7 +52,7 @@ class AttendanceController extends Controller
     /**
      * Display the classroom roll-call attendance sheet for a batch.
      */
-    public function create(int $batchId): Response
+    public function create(Request $request, int $batchId): Response
     {
         $batch = auth()->user()->batches()
             ->with([
@@ -63,11 +63,70 @@ class AttendanceController extends Controller
             ])
             ->findOrFail($batchId);
 
+        $selectedDate = $request->input('date', today()->toDateString());
+
+        // Check if attendance session already exists for this date
+        $session = AttendanceSession::where('batch_id', $batch->id)
+            ->whereDate('session_date', $selectedDate)
+            ->with('classAttendances')
+            ->first();
+
+        $existingAttendances = $session 
+            ? $session->classAttendances->keyBy('student_profile_id')
+            : collect();
+
+        // Check for approved leaves on this date
+        $studentProfileIds = $batch->enrollments->pluck('student_profile_id')->filter();
+        $approvedLeaves = \App\Domains\Student\Models\LeaveRequest::whereIn('student_profile_id', $studentProfileIds)
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $selectedDate)
+            ->whereDate('end_date', '>=', $selectedDate)
+            ->get()
+            ->keyBy('student_profile_id');
+
+        // Check if date is declared as an official college off / holiday
+        $isHoliday = \App\Domains\Operations\Models\InstitutionalHoliday::isHolidayForCourse($selectedDate, $batch->course_id);
+
+        $trainees = $batch->enrollments->map(function ($enr) use ($existingAttendances, $approvedLeaves, $isHoliday) {
+            $profile = $enr->studentProfile;
+            $att = $existingAttendances->get($profile?->id);
+            $hasLeave = $approvedLeaves->has($profile?->id);
+
+            // Default status: existing attendance status if present, else 'holiday' if declared holiday, else 'leave' if approved leave, else 'present'
+            $defaultStatus = $att?->status ?? ($isHoliday ? 'holiday' : ($hasLeave ? 'leave' : 'present'));
+
+            return [
+                'enrollment_id' => $enr->id,
+                'student_profile_id' => $profile?->id,
+                'enrollment_number' => $enr->enrollment_number,
+                'name' => $profile?->user?->name ?? 'Trainee',
+                'father_name' => $profile?->father_name ?? 'N/A',
+                'status' => $defaultStatus,
+                'late_minutes' => $att?->late_minutes ?? 0,
+                'has_approved_leave' => $hasLeave,
+                'leave_reason' => $hasLeave ? $approvedLeaves->get($profile->id)?->reason : null,
+                'is_previously_saved' => !is_null($att),
+            ];
+        });
+
         $subjects = Subject::where('course_id', $batch->course_id)->get();
+        $teacherBatches = auth()->user()->batches()->with('course')->get();
 
         return Inertia::render('Teacher/Attendance/Create', [
             'batch' => $batch,
             'subjects' => $subjects,
+            'selectedDate' => $selectedDate,
+            'isHoliday' => $isHoliday,
+            'trainees' => $trainees,
+            'isSaved' => !is_null($session),
+            'teacherBatches' => $teacherBatches,
+            'existingSession' => $session ? [
+                'id' => $session->id,
+                'subject_id' => $session->subject_id,
+                'location_name' => $session->location_name,
+                'start_time' => $session->start_time,
+                'end_time' => $session->end_time,
+            ] : null,
             'locationPresets' => $this->locationPresets,
         ]);
     }
@@ -193,7 +252,7 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'session_id' => 'required|exists:attendance_sessions,id',
             'student_profile_id' => 'required|exists:student_profiles,id',
-            'status' => 'required|in:present,absent,late,leave',
+            'status' => 'required|in:present,absent,late,leave,holiday',
         ]);
 
         ClassAttendance::updateOrCreate(
@@ -243,36 +302,208 @@ class AttendanceController extends Controller
             'radius_meters' => 'nullable|integer',
             'attendances' => 'required|array|min:1',
             'attendances.*.student_profile_id' => 'required|exists:student_profiles,id',
-            'attendances.*.status' => 'required|in:present,absent,late,leave',
+            'attendances.*.status' => 'required|in:present,absent,late,leave,holiday',
             'attendances.*.late_minutes' => 'nullable|integer|min:0',
         ]);
 
-        $session = AttendanceSession::create([
-            'batch_id' => $batch->id,
-            'user_id' => auth()->id(),
-            'subject_id' => $validated['subject_id'] ?? null,
-            'location_name' => $validated['location_name'] ?? 'Classroom / Lab',
-            'latitude' => $validated['latitude'] ?? 28.4212,
-            'longitude' => $validated['longitude'] ?? 70.3023,
-            'radius_meters' => $validated['radius_meters'] ?? 150,
-            'session_date' => $validated['session_date'],
-            'start_time' => $validated['start_time'] ?? now()->format('H:i:s'),
-            'end_time' => $validated['end_time'] ?? null,
-            'status' => 'closed',
-        ]);
+        $session = AttendanceSession::updateOrCreate(
+            [
+                'batch_id' => $batch->id,
+                'session_date' => $validated['session_date'],
+            ],
+            [
+                'user_id' => auth()->id(),
+                'subject_id' => $validated['subject_id'] ?? null,
+                'location_name' => $validated['location_name'] ?? 'Classroom / Lab',
+                'latitude' => $validated['latitude'] ?? 28.4212,
+                'longitude' => $validated['longitude'] ?? 70.3023,
+                'radius_meters' => $validated['radius_meters'] ?? 150,
+                'start_time' => $validated['start_time'] ?? now()->format('H:i:s'),
+                'end_time' => $validated['end_time'] ?? null,
+                'status' => 'closed',
+            ]
+        );
 
         foreach ($validated['attendances'] as $att) {
-            ClassAttendance::create([
-                'attendance_session_id' => $session->id,
-                'student_profile_id' => $att['student_profile_id'],
-                'status' => $att['status'],
-                'method' => 'manual',
-                'late_minutes' => $att['status'] === 'late' ? intval($att['late_minutes'] ?? 0) : 0,
-                'marked_at' => now(),
-            ]);
+            ClassAttendance::updateOrCreate(
+                [
+                    'attendance_session_id' => $session->id,
+                    'student_profile_id' => $att['student_profile_id'],
+                ],
+                [
+                    'status' => $att['status'],
+                    'method' => 'manual',
+                    'is_confirmed_by_teacher' => true,
+                    'teacher_confirmed_at' => now(),
+                    'confirmed_by_user_id' => auth()->id(),
+                    'late_minutes' => $att['status'] === 'late' ? intval($att['late_minutes'] ?? 0) : 0,
+                    'marked_at' => now(),
+                ]
+            );
         }
 
-        return redirect()->route('teacher.dashboard')->with('success', 'Classroom attendance for ' . $batch->name . ' saved successfully.');
+        return redirect()->route('teacher.attendance.create', [
+            'batchId' => $batch->id,
+            'date' => $validated['session_date'],
+        ])->with('success', 'Classroom attendance for ' . $batch->name . ' on ' . $validated['session_date'] . ' saved successfully.');
+    }
+
+    /**
+     * Display the monthly attendance register matrix with day-by-day records.
+     */
+    public function monthlyRegister(Request $request, int $batchId): Response
+    {
+        $batch = auth()->user()->batches()
+            ->with([
+                'course.trade.program.department',
+                'enrollments' => function ($q) {
+                    $q->where('status', 'active')->with('studentProfile.user');
+                },
+            ])
+            ->findOrFail($batchId);
+
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+
+        $date = \Carbon\Carbon::createFromDate($year, $month, 1);
+        $daysInMonth = $date->daysInMonth;
+        $monthName = $date->format('F');
+
+        // Get all attendance sessions for this batch in this month
+        $sessions = AttendanceSession::where('batch_id', $batch->id)
+            ->whereYear('session_date', $year)
+            ->whereMonth('session_date', $month)
+            ->with('classAttendances')
+            ->get()
+            ->keyBy(function ($item) {
+                return (int) $item->session_date->format('j');
+            });
+
+        // Get all approved leaves for enrolled students in this month
+        $studentProfileIds = $batch->enrollments->pluck('student_profile_id')->filter();
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+
+        $leaves = \App\Domains\Student\Models\LeaveRequest::whereIn('student_profile_id', $studentProfileIds)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($startOfMonth, $endOfMonth) {
+                $q->whereBetween('start_date', [$startOfMonth, $endOfMonth])
+                  ->orWhereBetween('end_date', [$startOfMonth, $endOfMonth])
+                  ->orWhere(function ($sub) use ($startOfMonth, $endOfMonth) {
+                      $sub->where('start_date', '<=', $startOfMonth)
+                          ->where('end_date', '>=', $endOfMonth);
+                  });
+            })
+            ->get();
+
+        // Build day list metadata (day of month, day of week e.g. Mon, Tue)
+        $daysList = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dayCarbon = \Carbon\Carbon::createFromDate($year, $month, $d);
+            $hasSession = $sessions->has($d);
+            $isHolidayDay = \App\Domains\Operations\Models\InstitutionalHoliday::isHolidayForCourse($dayCarbon->toDateString(), $batch->course_id);
+            $daysList[] = [
+                'day' => $d,
+                'date' => $dayCarbon->toDateString(),
+                'day_of_week' => $dayCarbon->format('D'),
+                'is_weekend' => $dayCarbon->isWeekend(),
+                'has_session' => $hasSession,
+                'is_holiday' => $isHolidayDay,
+            ];
+        }
+
+        $studentMatrix = $batch->enrollments->map(function ($enr) use ($daysInMonth, $year, $month, $sessions, $leaves, $batch) {
+            $profile = $enr->studentProfile;
+            $profileId = $profile?->id;
+
+            $daysRecord = [];
+            $presentCount = 0;
+            $absentCount = 0;
+            $leaveCount = 0;
+            $lateCount = 0;
+            $totalMarked = 0;
+
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $dayCarbon = \Carbon\Carbon::createFromDate($year, $month, $d);
+                $session = $sessions->get($d);
+                $status = null;
+
+                if ($session) {
+                    $att = $session->classAttendances->firstWhere('student_profile_id', $profileId);
+                    if ($att) {
+                        $status = $att->status; // present, absent, leave, late
+                    }
+                }
+
+                // If not marked in session, check if on approved leave for this day
+                if (!$status) {
+                    $isOnLeave = $leaves->first(function ($l) use ($profileId, $dayCarbon) {
+                        return $l->student_profile_id === $profileId
+                            && $dayCarbon->between($l->start_date, $l->end_date);
+                    });
+                    if ($isOnLeave && $session) {
+                        $status = 'leave';
+                    }
+                }
+
+                // If declared institutional holiday, automatically count as holiday and NOT absent
+                $isDayHoliday = \App\Domains\Operations\Models\InstitutionalHoliday::isHolidayForCourse($dayCarbon->toDateString(), $batch->course_id);
+                if ($isDayHoliday && (!$status || $status === 'absent')) {
+                    $status = 'holiday';
+                }
+
+                if ($status === 'present') {
+                    $presentCount++;
+                    $totalMarked++;
+                } elseif ($status === 'absent') {
+                    $absentCount++;
+                    $totalMarked++;
+                } elseif ($status === 'leave') {
+                    $leaveCount++;
+                    $totalMarked++;
+                } elseif ($status === 'late') {
+                    $lateCount++;
+                    $totalMarked++;
+                } elseif ($status === 'holiday') {
+                    // Counted as holiday / off-day, NOT penalized as absent
+                    $totalMarked++;
+                }
+
+                $daysRecord[$d] = $status;
+            }
+
+            $effectivePresents = $presentCount + ($lateCount * 0.5);
+            $percentage = $totalMarked > 0 ? round(($effectivePresents / $totalMarked) * 100, 1) : 0;
+
+            return [
+                'enrollment_id' => $enr->id,
+                'student_profile_id' => $profileId,
+                'enrollment_number' => $enr->enrollment_number,
+                'name' => $profile?->user?->name ?? 'Trainee',
+                'father_name' => $profile?->father_name ?? 'N/A',
+                'days' => $daysRecord,
+                'present_count' => $presentCount,
+                'absent_count' => $absentCount,
+                'leave_count' => $leaveCount,
+                'late_count' => $lateCount,
+                'total_marked' => $totalMarked,
+                'percentage' => $percentage,
+            ];
+        });
+
+        $teacherBatches = auth()->user()->batches()->with('course')->get();
+
+        return Inertia::render('Teacher/Attendance/Monthly', [
+            'batch' => $batch,
+            'teacherBatches' => $teacherBatches,
+            'month' => $month,
+            'year' => $year,
+            'monthName' => $monthName,
+            'daysInMonth' => $daysInMonth,
+            'daysList' => $daysList,
+            'studentMatrix' => $studentMatrix,
+            'totalSessions' => $sessions->count(),
+        ]);
     }
 
     /**

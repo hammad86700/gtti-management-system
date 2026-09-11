@@ -101,6 +101,16 @@ class ClerkAdmissionPortalTest extends TestCase
             'email' => 'newclerk@gtti.edu.pk',
             'password' => 'SecurePass123!',
             'role_id' => $clerkRole->id,
+            'father_name' => 'Clerk Father',
+            'cnic' => '31202-3344556-7',
+            'phone' => '03001234567',
+            'dob' => '1992-05-10',
+            'gender' => 'male',
+            'designation' => 'Admission Clerk',
+            'employment_type' => 'regular',
+            'joining_date' => '2023-01-15',
+            'highest_qualification' => 'Bachelor of Commerce',
+            'residential_address' => 'GTTI Staff Colony, Rahim Yar Khan',
         ]);
 
         $response->assertRedirect();
@@ -295,5 +305,66 @@ class ClerkAdmissionPortalTest extends TestCase
         // Direct hit on /dashboard also redirects to clerk.dashboard
         $dashResponse = $this->actingAs($this->clerk)->get(route('dashboard'));
         $dashResponse->assertRedirect(route('clerk.dashboard'));
+    }
+
+    public function test_dashboard_accurately_counts_pending_scrutiny_and_excludes_approved_fee_challans(): void
+    {
+        // 1. App with approved challan & confirmed admission (should NOT be counted in pending_fee_verifications)
+        $this->application->update([
+            'status' => 'admitted',
+            'fee_status' => 'paid',
+            'challan_receipt_path' => 'challan_receipts/test_receipt.png',
+        ]);
+
+        // 2. Second application with status 'pending' (MUST be counted in pending_scrutiny)
+        $secondStudent = User::factory()->create(['name' => 'Waqas Ahmed', 'cnic' => '31303-8443289-1']);
+        $secondProfile = StudentProfile::create([
+            'user_id' => $secondStudent->id,
+            'registration_number' => 'GTTI-APP-2027',
+            'father_name' => 'M Ahmed',
+            'domicile_district' => 'Rahim Yar Khan',
+            'gender' => 'Male',
+        ]);
+        $secondApp = Application::create([
+            'admission_campaign_id' => $this->campaign->id,
+            'student_profile_id' => $secondProfile->id,
+            'course_id' => $this->course->id,
+            'shift' => 'Evening',
+            'application_number' => 'APP-2026-TWLZ0P',
+            'status' => 'pending',
+            'fee_status' => 'unpaid',
+            'matric_total_marks' => 1100,
+            'matric_obtained_marks' => 900,
+        ]);
+
+        // Verify Clerk Dashboard stats
+        $response = $this->actingAs($this->clerk)->get(route('clerk.dashboard'));
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Clerk/Dashboard')
+            ->where('stats.pending_scrutiny', 1)
+            ->where('stats.pending_fee_verifications', 0)
+            ->where('stats.admitted_applications', 1)
+        );
+
+        // Verify Application Review filter with status=submitted captures status='pending'
+        $reviewResponse = $this->actingAs($this->clerk)->get(route('clerk.applications.index', ['status' => 'submitted']));
+        $reviewResponse->assertOk();
+        $reviewResponse->assertInertia(fn ($page) => $page
+            ->component('Clerk/Applications/Index')
+            ->where('pendingScrutinyCount', 1)
+            ->where('pendingFeeCount', 0)
+            ->has('applications.data', 1)
+            ->where('applications.data.0.id', $secondApp->id)
+        );
+
+        // Verify Application Review filter with status=confirmed captures status='admitted'
+        $confirmedResponse = $this->actingAs($this->clerk)->get(route('clerk.applications.index', ['status' => 'confirmed']));
+        $confirmedResponse->assertOk();
+        $confirmedResponse->assertInertia(fn ($page) => $page
+            ->component('Clerk/Applications/Index')
+            ->has('applications.data', 1)
+            ->where('applications.data.0.id', $this->application->id)
+        );
     }
 }

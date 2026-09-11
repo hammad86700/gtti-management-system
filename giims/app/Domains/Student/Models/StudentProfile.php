@@ -24,6 +24,40 @@ class StudentProfile extends Model
     protected $guarded = [];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'profile_picture_url',
+    ];
+
+    /**
+     * Get the full URL to the student's profile picture.
+     */
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        if ($this->profile_picture) {
+            return '/storage/' . ltrim($this->profile_picture, '/');
+        }
+
+        return null;
+    }
+
+    /**
+     * Get or set dob alias for date_of_birth.
+     */
+    public function getDobAttribute()
+    {
+        return $this->date_of_birth;
+    }
+
+    public function setDobAttribute($value): void
+    {
+        $this->attributes['date_of_birth'] = $value;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -32,6 +66,7 @@ class StudentProfile extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'dob' => 'date',
             'struck_off_at' => 'datetime',
             'struck_off_until' => 'datetime',
         ];
@@ -51,6 +86,14 @@ class StudentProfile extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    /**
+     * Get the multi-tier educational history records for the student.
+     */
+    public function educations(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Student\Models\StudentEducation::class)->orderBy('passing_year', 'asc');
     }
 
     /**

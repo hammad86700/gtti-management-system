@@ -22,32 +22,67 @@ class EnrollmentController extends Controller
     /**
      * Display the student enrollment workbench, active roster, and manual student controls.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $applications = Application::with([
-            'studentProfile.user',
-            'course.trade.program.department',
-        ])
-        ->where('status', 'selected')
-        ->orderBy('updated_at', 'desc')
-        ->get();
+        $shiftFilter = $request->input('shift', 'all');
 
-        $batches = Batch::with('course')->orderBy('name')->get();
-        $courses = Course::with('trade.program')->where('is_active', true)->orderBy('name')->get();
-
-        $enrollments = Enrollment::with([
+        $applicationsQuery = Application::with([
             'studentProfile.user',
             'course.trade.program.department',
             'batch',
         ])
-        ->orderBy('created_at', 'desc')
-        ->get();
+        ->where('status', 'selected');
+
+        if ($shiftFilter && $shiftFilter !== 'all') {
+            $applicationsQuery->where('shift', ucfirst(strtolower($shiftFilter)));
+        }
+
+        $applications = $applicationsQuery->orderBy('updated_at', 'desc')->get();
+
+        $batches = Batch::with('course')->orderBy('name')->get();
+        $courses = Course::with(['trade.program', 'batches'])->where('is_active', true)->orderBy('name')->get();
+
+        $enrollmentsQuery = Enrollment::with([
+            'studentProfile.user',
+            'course.trade.program.department',
+            'batch',
+        ]);
+
+        if ($shiftFilter && $shiftFilter !== 'all') {
+            $enrollmentsQuery->whereHas('batch', function ($q) use ($shiftFilter) {
+                $q->where('shift', ucfirst(strtolower($shiftFilter)));
+            });
+        }
+
+        $enrollments = $enrollmentsQuery->orderBy('created_at', 'desc')->get();
+
+        // Count shift statistics
+        $morningCount = Enrollment::whereHas('batch', function ($q) {
+            $q->where('shift', 'Morning');
+        })->count();
+
+        $eveningCount = Enrollment::whereHas('batch', function ($q) {
+            $q->where('shift', 'Evening');
+        })->count();
+
+        $appMorningCount = Application::where('status', 'selected')->where('shift', 'Morning')->count();
+        $appEveningCount = Application::where('status', 'selected')->where('shift', 'Evening')->count();
 
         return Inertia::render('Admin/Enrollments/Index', [
             'applications' => $applications,
             'batches' => $batches,
             'courses' => $courses,
             'enrollments' => $enrollments,
+            'filters' => [
+                'shift' => $shiftFilter,
+            ],
+            'stats' => [
+                'total_enrolled' => Enrollment::count(),
+                'morning_count' => $morningCount,
+                'evening_count' => $eveningCount,
+                'app_morning_count' => $appMorningCount,
+                'app_evening_count' => $appEveningCount,
+            ],
         ]);
     }
 
@@ -58,10 +93,25 @@ class EnrollmentController extends Controller
     {
         $validated = $request->validate([
             'application_id' => 'required|exists:applications,id',
-            'batch_id' => 'required|exists:batches,id',
+            'batch_id' => 'nullable|exists:batches,id',
         ]);
 
-        $application = Application::with('studentProfile.user')->findOrFail($validated['application_id']);
+        $application = Application::with(['studentProfile.user', 'batch'])->findOrFail($validated['application_id']);
+
+        $batchId = $validated['batch_id'] ?? $application->batch_id;
+        if (!$batchId) {
+            $appShift = ucfirst(strtolower($application->shift ?? 'Morning'));
+            $batch = Batch::where('course_id', $application->course_id)
+                ->where(function ($q) use ($appShift) {
+                    $q->where('shift', $appShift)
+                      ->orWhere('shift', strtolower($appShift));
+                })->first();
+            $batchId = $batch?->id ?? Batch::where('course_id', $application->course_id)->first()?->id;
+        }
+
+        if (!$batchId) {
+            return redirect()->back()->with('error', 'No academic batch found for this course and shift. Please create a batch first.');
+        }
 
         // Generate permanent institute Student Roll / Enrollment ID
         $enrollmentNumber = 'GTTI-' . date('Y') . '-' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
@@ -111,7 +161,7 @@ class EnrollmentController extends Controller
         Enrollment::create([
             'student_profile_id' => $profile->id,
             'course_id' => $application->course_id,
-            'batch_id' => $validated['batch_id'],
+            'batch_id' => $batchId,
             'enrollment_number' => $enrollmentNumber,
             'enrollment_date' => now()->toDateString(),
             'status' => 'active',

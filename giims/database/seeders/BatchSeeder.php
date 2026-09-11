@@ -16,14 +16,29 @@ class BatchSeeder extends Seeder
         $courses = Course::all();
 
         foreach ($courses as $course) {
+            // 1. Morning Shift Batch
             Batch::firstOrCreate(
                 [
                     'course_id' => $course->id,
-                    'name' => 'Fall 2026 Batch',
+                    'shift' => 'Morning',
                 ],
                 [
+                    'name' => 'Fall 2026 - Morning Batch',
                     'session_year' => '2026-2027',
-                    'shift' => 'Morning',
+                    'start_date' => '2026-09-01',
+                    'end_date' => '2027-08-31',
+                ]
+            );
+
+            // 2. Evening Shift Batch
+            Batch::firstOrCreate(
+                [
+                    'course_id' => $course->id,
+                    'shift' => 'Evening',
+                ],
+                [
+                    'name' => 'Fall 2026 - Evening Batch',
+                    'session_year' => '2026-2027',
                     'start_date' => '2026-09-01',
                     'end_date' => '2027-08-31',
                 ]

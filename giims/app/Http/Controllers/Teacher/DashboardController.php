@@ -106,6 +106,26 @@ class DashboardController extends Controller
 
         $locationPresets = (new \App\Http\Controllers\Teacher\AttendanceController())->locationPresets;
 
+        // Phase 34: Teacher Self-Attendance & Proof Verification Data
+        $userId = auth()->id();
+        $todayStr = today()->toDateString();
+        $todayAttendance = \App\Domains\Attendance\Models\FacultyAttendance::where('user_id', $userId)
+            ->where('attendance_date', $todayStr)
+            ->first();
+
+        $clientIp = request()->ip();
+        $isCampusIp = \App\Domains\Attendance\Services\CampusNetworkService::isCampusIp($clientIp);
+
+        $monthAttendances = \App\Domains\Attendance\Models\FacultyAttendance::where('user_id', $userId)
+            ->whereYear('attendance_date', now()->year)
+            ->whereMonth('attendance_date', now()->month)
+            ->get();
+
+        $recentFacultyLeaves = \App\Domains\Attendance\Models\FacultyLeave::where('user_id', $userId)
+            ->latest()
+            ->take(8)
+            ->get();
+
         return Inertia::render('Teacher/Dashboard', [
             'batches' => $batches,
             'announcements' => $announcements,
@@ -113,6 +133,16 @@ class DashboardController extends Controller
             'assignedAssets' => $assignedAssets,
             'visitingStats' => $visitingStats,
             'locationPresets' => $locationPresets,
+            'facultyAttendanceToday' => $todayAttendance,
+            'facultyAttendanceSummary' => [
+                'presents' => $monthAttendances->where('status', 'present')->count(),
+                'lates' => $monthAttendances->where('status', 'late')->count(),
+                'total_this_month' => $monthAttendances->count(),
+            ],
+            'facultyLeaves' => $recentFacultyLeaves,
+            'clientIp' => $clientIp,
+            'isCampusIp' => $isCampusIp,
+            'lateCutoff' => config('services.campus.late_time', '08:30'),
         ]);
     }
 

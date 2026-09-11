@@ -66,6 +66,7 @@ class OrganizationController extends Controller
             'name' => 'required|string|max:255',
             'entry_level' => 'required|string|max:100',
             'is_active' => 'nullable|boolean',
+            'offered_shifts' => 'nullable|in:Both,Morning,Evening',
             'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
         ]);
 
@@ -74,13 +75,16 @@ class OrganizationController extends Controller
             $adPath = $request->file('advertisement_image')->store('course_advertisements', 'public');
         }
 
-        Course::create([
+        $course = Course::create([
             'trade_id' => $validated['trade_id'],
             'name' => $validated['name'],
             'entry_level' => $validated['entry_level'],
             'is_active' => $validated['is_active'] ?? true,
+            'offered_shifts' => $validated['offered_shifts'] ?? 'Both',
             'advertisement_image_path' => $adPath,
         ]);
+
+        $course->ensureShiftBatchesExist();
 
         return redirect()->back()->with('success', "Course '{$validated['name']}' created successfully.");
     }
@@ -94,6 +98,7 @@ class OrganizationController extends Controller
             'name' => 'required|string|max:255',
             'entry_level' => 'required|string|max:100',
             'is_active' => 'nullable|boolean',
+            'offered_shifts' => 'nullable|in:Both,Morning,Evening',
             'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
             'remove_advertisement' => 'nullable',
         ]);
@@ -116,8 +121,11 @@ class OrganizationController extends Controller
             'name' => $validated['name'],
             'entry_level' => $validated['entry_level'],
             'is_active' => $validated['is_active'] ?? true,
+            'offered_shifts' => $validated['offered_shifts'] ?? ($course->offered_shifts ?: 'Both'),
             'advertisement_image_path' => $adPath,
         ]);
+
+        $course->ensureShiftBatchesExist();
 
         return redirect()->back()->with('success', "Course '{$course->name}' updated successfully.");
     }

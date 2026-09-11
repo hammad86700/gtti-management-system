@@ -19,8 +19,12 @@ import {
     CreditCard,
     CheckCircle2,
     AlertCircle,
-    Award
+    Award,
+    Camera,
+    Layout,
+    Image as ImageIcon
 } from 'lucide-react';
+import ThemeToggle from '@/Components/UI/ThemeToggle';
 
 export default function ClerkLayout({ children, header }) {
     const { auth, flash = {} } = usePage().props;
@@ -76,10 +80,52 @@ export default function ClerkLayout({ children, header }) {
             icon: Award,
             badge: 'Gazette',
         },
+        {
+            name: 'Certificate Issuance Desk',
+            href: route('clerk.certificates.index'),
+            active: route().current('clerk.certificates.*'),
+            icon: Award,
+            badge: 'Parchments',
+        },
+        {
+            name: 'Class Timetables',
+            href: route('clerk.timetables.index'),
+            active: route().current('clerk.timetables.*'),
+            icon: Clock,
+            badge: 'Schedules',
+        },
+        {
+            name: 'Urgent College Off / Holidays',
+            href: route('clerk.holidays.index'),
+            active: route().current('clerk.holidays.*'),
+            icon: AlertCircle,
+            badge: 'Off Days',
+        },
+        {
+            name: 'Hero Showcase Media',
+            href: route('clerk.campus-media.index'),
+            active: route().current('clerk.campus-media.*'),
+            icon: Camera,
+            badge: 'Hero',
+        },
+        {
+            name: 'Institute Image Gallery',
+            href: route('clerk.gallery.index'),
+            active: route().current('clerk.gallery.*'),
+            icon: ImageIcon,
+            badge: 'Gallery',
+        },
+        {
+            name: 'Public Landing CMS',
+            href: route('clerk.site-settings.index'),
+            active: route().current('clerk.site-settings.*') || route().current('admin.site-settings.*'),
+            icon: Layout,
+            badge: 'CMS',
+        },
     ];
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans antialiased selection:bg-[#C1902F] selection:text-white">
+        <div className="min-h-screen bg-[#F4F6F8] dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col font-sans antialiased selection:bg-[#C1902F] selection:text-white transition-colors duration-200">
             {/* Executive Authority Banner for Principal / Super Admin */}
             {isExecutive && (
                 <div className="bg-[#0B3B24] border-b border-emerald-600/50 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-white shadow-md z-50">
@@ -214,36 +260,43 @@ export default function ClerkLayout({ children, header }) {
                                     </Link>
                                 );
                             })}
+
+                            {/* Sign Out / Log Out directly beneath Official Merit Lists */}
+                            <div className="pt-2 border-t border-slate-800/80 mt-2">
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 transition group border border-slate-800/60 hover:border-rose-500/30 text-left"
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <LogOut className="h-4 w-4 text-slate-400 group-hover:text-rose-400 transition" />
+                                        <span>Sign Out / Log Out</span>
+                                    </div>
+                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-800 group-hover:border-rose-500/30 group-hover:text-rose-400">
+                                        Exit
+                                    </span>
+                                </Link>
+                            </div>
                         </nav>
                     </div>
 
-                    {/* Bottom Logout & Info */}
-                    <div className="p-5 border-t border-slate-800 space-y-3">
-                        <Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                            className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-rose-500/10 hover:text-rose-400 text-slate-400 text-xs font-bold transition border border-slate-800"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            <span>Sign Out</span>
-                        </Link>
-
-                        <div className="text-[10px] text-slate-500 text-center font-mono">
-                            Operational Authority • TEVTA
-                        </div>
+                    {/* Bottom Info Footer */}
+                    <div className="p-4 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                        <span>GTTI Clerk Desk</span>
+                        <span>TEVTA Punjab</span>
                     </div>
                 </aside>
 
                 {/* Main Content Area */}
                 <div className="flex-1 flex flex-col min-w-0">
                     {/* Top Navbar */}
-                    <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+                    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
                         <div className="flex items-center space-x-3">
                             <button
                                 type="button"
                                 onClick={() => setSidebarOpen(true)}
-                                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 lg:hidden"
+                                className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 lg:hidden"
                             >
                                 <Menu className="h-5 w-5" />
                             </button>
@@ -251,6 +304,9 @@ export default function ClerkLayout({ children, header }) {
                         </div>
 
                         <div className="flex items-center space-x-3">
+                            {/* Theme Toggle Button */}
+                            <ThemeToggle variant="header" />
+
                             {isExecutive && (
                                 <Link
                                     href={route('admin.dashboard')}
@@ -263,7 +319,7 @@ export default function ClerkLayout({ children, header }) {
 
                             <Link
                                 href={route('clerk.scheduler.index')}
-                                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 text-xs font-bold transition"
+                                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 text-xs font-bold transition"
                             >
                                 <Send className="h-3.5 w-3.5" />
                                 <span>Bulk Test Scheduler</span>
@@ -280,7 +336,7 @@ export default function ClerkLayout({ children, header }) {
                     </header>
 
                     {/* Page Canvas */}
-                    <main className="flex-1 bg-[#070D12]">
+                    <main className="flex-1 bg-[#F4F6F8] dark:bg-[#070D12]">
                         {flash?.success && (
                             <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
                                 <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 flex items-center justify-between shadow-lg text-xs font-bold">

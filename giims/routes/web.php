@@ -38,6 +38,16 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/download-prospectus', [HomeController::class, 'downloadProspectus'])->name('prospectus.download');
+Route::get('/merit-lists', [HomeController::class, 'meritLists'])->name('merit-lists');
+
+// Phase 37: Dynamic Public Landing Page CMS Management Desk (Admin, Principal, Clerk)
+Route::middleware(['auth', 'verified', 'role:admin,clerk'])->group(function () {
+    Route::get('/admin/site-settings', [\App\Http\Controllers\Admin\SiteSettingsController::class, 'index'])->name('admin.site-settings.index');
+    Route::post('/admin/site-settings', [\App\Http\Controllers\Admin\SiteSettingsController::class, 'update'])->name('admin.site-settings.update');
+    Route::get('/clerk/site-settings', [\App\Http\Controllers\Admin\SiteSettingsController::class, 'index'])->name('clerk.site-settings.index');
+    Route::post('/clerk/site-settings', [\App\Http\Controllers\Admin\SiteSettingsController::class, 'update'])->name('clerk.site-settings.update');
+});
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
@@ -134,6 +144,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(fu
 
     Route::get('/staff', [StaffController::class, 'index'])->name('admin.staff.index');
     Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');
+    Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('admin.staff.destroy');
 
     // Route alias for staff.index & staff.store direct compatibility
     Route::get('/staff-direct', [StaffController::class, 'index'])->name('staff.index');
@@ -148,6 +159,48 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->group(fu
     // Phase 32: Apprenticeship & OJT Trainee Registry & TEVTA Export
     Route::get('/apprenticeships', [\App\Http\Controllers\Admin\ApprenticeshipRegistryController::class, 'index'])->name('admin.apprenticeships.index');
     Route::get('/apprenticeships/export', [\App\Http\Controllers\Admin\ApprenticeshipRegistryController::class, 'exportCsv'])->name('admin.apprenticeships.export');
+
+    // Phase 34: Principal Faculty Attendance Monitoring & Leave Approval Desk
+    Route::get('/faculty-attendance', [\App\Http\Controllers\Admin\FacultyMonitoringController::class, 'dailyRoster'])->name('admin.faculty-attendance.index');
+    Route::post('/faculty-leaves/{leave}/approve', [\App\Http\Controllers\Admin\FacultyMonitoringController::class, 'approveLeave'])->name('admin.faculty-leaves.approve');
+    Route::post('/faculty-leaves/{leave}/reject', [\App\Http\Controllers\Admin\FacultyMonitoringController::class, 'rejectLeave'])->name('admin.faculty-leaves.reject');
+
+    // Campus Showcase Media & Public Carousel Management
+    Route::get('/campus-media', [\App\Http\Controllers\Admin\CampusMediaController::class, 'index'])->name('admin.campus-media.index');
+    Route::post('/campus-media', [\App\Http\Controllers\Admin\CampusMediaController::class, 'store'])->name('admin.campus-media.store');
+    Route::match(['post', 'patch'], '/campus-media/{photo}', [\App\Http\Controllers\Admin\CampusMediaController::class, 'update'])->name('admin.campus-media.update');
+    Route::patch('/campus-media/{photo}/toggle', [\App\Http\Controllers\Admin\CampusMediaController::class, 'toggle'])->name('admin.campus-media.toggle');
+    Route::delete('/campus-media/{photo}', [\App\Http\Controllers\Admin\CampusMediaController::class, 'destroy'])->name('admin.campus-media.destroy');
+
+    // Institute Public Gallery Management (Admin & Principal & Clerk)
+    Route::get('/gallery', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'index'])->name('admin.gallery.index');
+    Route::post('/gallery', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'store'])->name('admin.gallery.store');
+    Route::match(['post', 'patch'], '/gallery/{image}', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'update'])->name('admin.gallery.update');
+    Route::patch('/gallery/{image}/toggle', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'toggle'])->name('admin.gallery.toggle');
+    Route::delete('/gallery/{image}', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'destroy'])->name('admin.gallery.destroy');
+
+    // Core Team Management (Admin & Principal)
+    Route::get('/core-team', [\App\Http\Controllers\Admin\CoreTeamController::class, 'index'])->name('admin.core-team.index');
+    Route::post('/core-team', [\App\Http\Controllers\Admin\CoreTeamController::class, 'store'])->name('admin.core-team.store');
+    Route::match(['post', 'patch'], '/core-team/{member}', [\App\Http\Controllers\Admin\CoreTeamController::class, 'update'])->name('admin.core-team.update');
+    Route::patch('/core-team/{member}/toggle', [\App\Http\Controllers\Admin\CoreTeamController::class, 'toggle'])->name('admin.core-team.toggle');
+    Route::delete('/core-team/{member}', [\App\Http\Controllers\Admin\CoreTeamController::class, 'destroy'])->name('admin.core-team.destroy');
+
+    // Phase 36: Certificate Executive Approval Desk
+    Route::get('/certificates', [\App\Http\Controllers\Admin\CertificateApprovalController::class, 'index'])->name('admin.certificates.index');
+    Route::post('/certificates/{certificate}/approve', [\App\Http\Controllers\Admin\CertificateApprovalController::class, 'approve'])->name('admin.certificates.approve');
+    Route::post('/certificates/{certificate}/reject', [\App\Http\Controllers\Admin\CertificateApprovalController::class, 'reject'])->name('admin.certificates.reject');
+
+    // Phase 36: Dual College Timetable Management (Teachers & Courses/Trades)
+    Route::get('/timetables', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('admin.timetables.index');
+    Route::post('/timetables', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('admin.timetables.store');
+    Route::put('/timetables/{timetable}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('admin.timetables.update');
+    Route::delete('/timetables/{timetable}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('admin.timetables.destroy');
+
+    // Phase 36: Urgent College Off & Institutional Holiday Management
+    Route::get('/holidays', [\App\Http\Controllers\Shared\HolidayController::class, 'index'])->name('admin.holidays.index');
+    Route::post('/holidays', [\App\Http\Controllers\Shared\HolidayController::class, 'store'])->name('admin.holidays.store');
+    Route::delete('/holidays/{holiday}', [\App\Http\Controllers\Shared\HolidayController::class, 'destroy'])->name('admin.holidays.destroy');
 
     // Privileged Administrative Subsystems (Super-Admin / Principal only)
     Route::middleware('role:super-admin,principal')->group(function () {
@@ -166,6 +219,7 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::patch('/submissions/{submissionId}/grade', [TeacherAssignmentController::class, 'grade'])->name('assignments.grade');
     Route::get('/batches/{batchId}/attendance/create', [TeacherAttendanceController::class, 'create'])->name('attendance.create');
     Route::post('/batches/{batchId}/attendance', [TeacherAttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('/batches/{batchId}/attendance/monthly', [TeacherAttendanceController::class, 'monthlyRegister'])->name('attendance.monthly');
     Route::get('/batches/{batchId}/attendance/live', [TeacherAttendanceController::class, 'liveSession'])->name('attendance.live');
     Route::post('/batches/{batchId}/attendance/start-session', [TeacherAttendanceController::class, 'startSession'])->name('attendance.start-session');
     Route::post('/batches/{batchId}/attendance/manual-update', [TeacherAttendanceController::class, 'manualUpdateRecord'])->name('attendance.manual-update');
@@ -231,6 +285,11 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     // Phase 33: Teacher LMS Coursework Account Activation
     Route::post('/enrollments/{enrollmentId}/toggle-lms', [\App\Http\Controllers\Teacher\LmsActivationController::class, 'toggleLms'])->name('enrollments.toggle-lms');
     Route::post('/batches/{batchId}/activate-lms', [\App\Http\Controllers\Teacher\LmsActivationController::class, 'activateAllBatch'])->name('batches.activate-lms');
+
+    // Phase 34: Faculty Self-Attendance with Daily Proof & Leave Submission
+    Route::get('/faculty-attendance', [\App\Http\Controllers\Teacher\TeacherAttendanceController::class, 'index'])->name('faculty-attendance.index');
+    Route::post('/faculty-attendance', [\App\Http\Controllers\Teacher\TeacherAttendanceController::class, 'store'])->name('faculty-attendance.store');
+    Route::post('/faculty-leaves', [\App\Http\Controllers\Teacher\TeacherLeaveController::class, 'store'])->name('faculty-leaves.store');
 });
 
 // Phase 29: Direct route aliases for curriculum actions
@@ -263,6 +322,9 @@ Route::middleware(['auth', 'verified', 'role:security'])->prefix('security')->na
     Route::post('/gate-portal/verify', [GateController::class, 'verify'])->name('gate.verify');
     Route::post('/gate-portal/log', [GateController::class, 'store'])->name('gate.store');
 });
+
+// Official Student ID Card (accessible to student for own card, and staff for any trainee card)
+Route::middleware(['auth', 'verified'])->get('/student/id-card/{identifier?}', [\App\Http\Controllers\Student\StudentCardController::class, 'show'])->name('student.id-card');
 
 Route::middleware(['auth', 'verified', 'role:student', 'student.active'])->prefix('student')->name('student.')->group(function () {
     Route::get('/profile', [StudentProfileController::class, 'edit'])->name('profile.edit');
@@ -297,6 +359,14 @@ Route::middleware(['auth', 'verified', 'role:student', 'student.active'])->prefi
     // Phase 32: Apprenticeship & OJT Registry
     Route::get('/apprenticeship', [\App\Http\Controllers\Student\ApprenticeshipController::class, 'index'])->name('apprenticeship.index');
     Route::post('/apprenticeship', [\App\Http\Controllers\Student\ApprenticeshipController::class, 'store'])->name('apprenticeship.store');
+
+    // Phase 36: Student Certificate Application & Digital Certificate Desk
+    Route::get('/certificates', [\App\Http\Controllers\Student\StudentCertificateController::class, 'index'])->name('certificates.index');
+    Route::post('/certificates', [\App\Http\Controllers\Student\StudentCertificateController::class, 'store'])->name('certificates.store');
+    Route::post('/certificates/apply', [\App\Http\Controllers\Student\StudentCertificateController::class, 'store'])->name('certificates.apply');
+
+    // Phase 36: Active Trainee Personal Timetable
+    Route::get('/timetable', [\App\Http\Controllers\Student\StudentTimetableController::class, 'index'])->name('timetable.index');
 });
 
 // Phase 26: Dedicated Admission Clerk Portal
@@ -318,6 +388,7 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::post('/applications/{id}/issue-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'issueSelectiveChallan'])->name('applications.issue-challan');
     Route::post('/courses/{courseId}/issue-challans', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'batchIssueChallans'])->name('courses.issue-challans');
     Route::post('/applications/{id}/verify-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'verifyChallanAndConfirm'])->name('applications.verify-challan');
+    Route::post('/applications/{id}/switch-shift', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'switchShift'])->name('applications.switch-shift');
     Route::get('/applications/{id}/receipt', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadReceipt'])->name('applications.receipt');
     Route::get('/applications/{id}/dossier', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadDossier'])->name('applications.dossier');
 
@@ -330,6 +401,20 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::post('/fees/reconcile-scroll', [\App\Http\Controllers\Clerk\FeeReconciliationController::class, 'reconcileScroll'])->name('fees.reconcile-scroll');
     Route::get('/fees/audit-report', [\App\Http\Controllers\Clerk\FeeReconciliationController::class, 'exportAuditReport'])->name('fees.audit-report');
 
+    // Phase 36: Clerk Certificate Issuance & Collection Date Scheduling Desk
+    Route::get('/certificates', [\App\Http\Controllers\Clerk\CertificateController::class, 'index'])->name('certificates.index');
+    Route::post('/certificates', [\App\Http\Controllers\Clerk\CertificateController::class, 'store'])->name('certificates.store');
+    Route::post('/certificates/{certificate}/process', [\App\Http\Controllers\Clerk\CertificateController::class, 'processRequest'])->name('certificates.process');
+    Route::post('/certificates/{certificate}/issue', [\App\Http\Controllers\Clerk\CertificateController::class, 'processRequest'])->name('certificates.issue');
+
+    // Phase 36: Clerk Timetable Inspection
+    Route::get('/timetables', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('timetables.index');
+
+    // Phase 36: Urgent Holiday Declaration for Clerk
+    Route::get('/holidays', [\App\Http\Controllers\Shared\HolidayController::class, 'index'])->name('holidays.index');
+    Route::post('/holidays', [\App\Http\Controllers\Shared\HolidayController::class, 'store'])->name('holidays.store');
+    Route::delete('/holidays/{holiday}', [\App\Http\Controllers\Shared\HolidayController::class, 'destroy'])->name('holidays.destroy');
+
     // Admission Cycle: Custom Challan Upload Desk
     Route::post('/applications/{id}/upload-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'uploadCustomChallan'])->name('applications.upload-challan');
     Route::get('/applications/{id}/custom-challan', [\App\Http\Controllers\Clerk\ApplicationReviewController::class, 'downloadCustomChallan'])->name('applications.custom-challan');
@@ -339,6 +424,19 @@ Route::middleware(['auth', 'verified', 'role:clerk,admin'])->prefix('clerk')->na
     Route::post('/merit-lists', [\App\Http\Controllers\Clerk\MeritListController::class, 'store'])->name('merit-lists.store');
     Route::post('/merit-lists/{id}/toggle-publish', [\App\Http\Controllers\Clerk\MeritListController::class, 'togglePublish'])->name('merit-lists.toggle-publish');
     Route::delete('/merit-lists/{id}', [\App\Http\Controllers\Clerk\MeritListController::class, 'destroy'])->name('merit-lists.destroy');
+
+    // Clerk Campus Media & Image Gallery Desks
+    Route::get('/campus-media', [\App\Http\Controllers\Admin\CampusMediaController::class, 'index'])->name('campus-media.index');
+    Route::post('/campus-media', [\App\Http\Controllers\Admin\CampusMediaController::class, 'store'])->name('campus-media.store');
+    Route::match(['post', 'patch'], '/campus-media/{photo}', [\App\Http\Controllers\Admin\CampusMediaController::class, 'update'])->name('campus-media.update');
+    Route::patch('/campus-media/{photo}/toggle', [\App\Http\Controllers\Admin\CampusMediaController::class, 'toggle'])->name('campus-media.toggle');
+    Route::delete('/campus-media/{photo}', [\App\Http\Controllers\Admin\CampusMediaController::class, 'destroy'])->name('campus-media.destroy');
+
+    Route::get('/gallery', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'index'])->name('gallery.index');
+    Route::post('/gallery', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'store'])->name('gallery.store');
+    Route::match(['post', 'patch'], '/gallery/{image}', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'update'])->name('gallery.update');
+    Route::patch('/gallery/{image}/toggle', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'toggle'])->name('gallery.toggle');
+    Route::delete('/gallery/{image}', [\App\Http\Controllers\Admin\InstituteGalleryController::class, 'destroy'])->name('gallery.destroy');
 });
 
 // Phase 32: PBTE Examination Admit Card (Roll Number Slip) & Official Entrance Test Slip

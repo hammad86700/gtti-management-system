@@ -264,13 +264,17 @@ export default function Dashboard({ stats = {}, recentApplications = [], courses
                                                     {app.candidate_name}
                                                 </span>
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                                                    app.status === 'verified'
-                                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                                        : app.status === 'rejected'
-                                                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                                                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                                    app.status === 'confirmed' || app.status === 'admitted'
+                                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                                        : app.status === 'verified'
+                                                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                                            : app.status === 'rejected'
+                                                                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                                                : app.status === 'receipt_submitted'
+                                                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                                                    : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                                                 }`}>
-                                                    {app.status}
+                                                    {app.status === 'confirmed' || app.status === 'admitted' ? 'Admitted' : (app.status ? app.status.replace('_', ' ') : 'Pending')}
                                                 </span>
                                             </div>
 

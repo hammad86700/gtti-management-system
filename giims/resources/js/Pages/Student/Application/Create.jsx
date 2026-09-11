@@ -28,7 +28,12 @@ import {
     Printer,
     Image as ImageIcon,
     Eye,
-    X
+    X,
+    Plus,
+    Trash2,
+    MapPin,
+    User,
+    Phone
 } from 'lucide-react';
 
 export default function Create({ campaign, courses = [], profile, existingApplication = null }) {
@@ -41,14 +46,65 @@ export default function Create({ campaign, courses = [], profile, existingApplic
     const [clientValidationWarning, setClientValidationWarning] = useState(null);
     const [activeAdFlyer, setActiveAdFlyer] = useState(null);
 
+    // Pre-populate educations from profile if available
+    const initialEducations = profile?.educations && profile.educations.length > 0
+        ? profile.educations.map((edu) => ({
+            id: edu.id,
+            degree_level: edu.degree_level || 'matric',
+            degree_title: edu.degree_title || (edu.degree_level === 'matric' ? 'Matriculation (Science)' : 'Intermediate (FSc)'),
+            institute_or_board: edu.institute_or_board || 'BISE Bahawalpur',
+            passing_year: edu.passing_year || (new Date().getFullYear() - 1),
+            roll_number: edu.roll_number || '',
+            total_marks: edu.total_marks || 1100,
+            obtained_marks: edu.obtained_marks || '',
+            grade_or_division: edu.grade_or_division || '',
+            transcript_scan: null,
+            transcript_scan_url: edu.transcript_scan_url || null,
+        }))
+        : [
+            {
+                degree_level: 'matric',
+                degree_title: 'Matriculation (Science / Arts)',
+                institute_or_board: 'BISE Bahawalpur',
+                passing_year: new Date().getFullYear() - 2,
+                roll_number: '',
+                total_marks: profile?.matric_total_marks || 1100,
+                obtained_marks: profile?.matric_obtained_marks || '',
+                grade_or_division: '',
+                transcript_scan: null,
+                transcript_scan_url: null,
+            },
+        ];
+
     const { data, setData, post, processing, errors } = useForm({
         course_id: courses[0]?.id || '',
-        cnic: user?.cnic || '',
+        shift: 'Morning',
+        batch_id: courses[0]?.batches?.find(b => b.shift?.toLowerCase() === 'morning')?.id || courses[0]?.batches?.[0]?.id || '',
+
+        // Candidate Personal & Biographical Information
+        name: user?.name || '',
+        cnic: user?.cnic || profile?.cnic || '',
         father_name: profile?.father_name || '',
+        guardian_name: profile?.guardian_name || '',
+        guardian_phone: profile?.guardian_phone || '',
+        dob: profile?.dob ? String(profile.dob).split('T')[0] : '2005-01-01',
+        gender: profile?.gender || 'male',
+        domicile_district: profile?.domicile_district || 'Rahim Yar Khan',
+        religion: profile?.religion || 'Islam',
+        address: profile?.address || '',
+        permanent_address: profile?.permanent_address || '',
+        profile_picture: null,
+
+        // Dynamic Multi-Tier Educational History
+        educations: initialEducations,
+
+        // Legacy Marks for backwards compatibility
         matric_total_marks: profile?.matric_total_marks ?? 1100,
         matric_obtained_marks: profile?.matric_obtained_marks ?? '',
         intermediate_total_marks: profile?.intermediate_total_marks ?? 1100,
         intermediate_obtained_marks: profile?.intermediate_obtained_marks ?? '',
+
+        // Document Files
         cnic_document: null,
         academic_document: null,
     });
@@ -57,6 +113,37 @@ export default function Create({ campaign, courses = [], profile, existingApplic
     const [cnicFileSize, setCnicFileSize] = useState('');
     const [academicFileName, setAcademicFileName] = useState('');
     const [academicFileSize, setAcademicFileSize] = useState('');
+
+    const handleCourseChange = (newCourseId) => {
+        const crs = courses.find((c) => String(c.id) === String(newCourseId));
+        const offered = crs?.offered_shifts || 'Both';
+        let targetShift = data.shift;
+
+        if (offered === 'Morning') {
+            targetShift = 'Morning';
+        } else if (offered === 'Evening') {
+            targetShift = 'Evening';
+        }
+
+        const batches = crs?.batches || [];
+        const matched = batches.find((b) => b.shift?.toLowerCase() === targetShift.toLowerCase()) || batches[0];
+        setData((prev) => ({
+            ...prev,
+            course_id: newCourseId,
+            shift: targetShift,
+            batch_id: matched ? matched.id : '',
+        }));
+    };
+
+    const handleShiftChange = (newShift) => {
+        const batches = selectedCourseObj?.batches || [];
+        const matched = batches.find((b) => b.shift?.toLowerCase() === newShift.toLowerCase()) || batches[0];
+        setData((prev) => ({
+            ...prev,
+            shift: newShift,
+            batch_id: matched ? matched.id : '',
+        }));
+    };
 
     const formatFileSize = (bytes) => {
         if (!bytes) return '';
@@ -106,13 +193,105 @@ export default function Create({ campaign, courses = [], profile, existingApplic
         setAcademicFileSize(formatFileSize(file.size));
     };
 
+    // Auto-formatting CNIC input
+    const handleCnicInput = (e) => {
+        let val = e.target.value.replace(/[^0-9]/g, '');
+        if (val.length > 13) val = val.slice(0, 13);
+
+        let formatted = val;
+        if (val.length > 5 && val.length <= 12) {
+            formatted = `${val.slice(0, 5)}-${val.slice(5)}`;
+        } else if (val.length > 12) {
+            formatted = `${val.slice(0, 5)}-${val.slice(5, 12)}-${val.slice(12, 13)}`;
+        }
+        setData('cnic', formatted);
+    };
+
+    // Dynamic education handlers
+    const addEducationRow = () => {
+        const currentLevels = data.educations.map(e => e.degree_level);
+        let nextLevel = 'intermediate';
+        let nextTitle = 'Intermediate (FSc / ICS / FA / I.Com)';
+        if (currentLevels.includes('intermediate')) {
+            nextLevel = 'dae';
+            nextTitle = 'DAE (Diploma of Associate Engineer)';
+        } else if (currentLevels.includes('dae')) {
+            nextLevel = 'bachelors';
+            nextTitle = "Bachelor's Degree (BS / BA / BSc)";
+        }
+
+        setData('educations', [
+            ...data.educations,
+            {
+                degree_level: nextLevel,
+                degree_title: nextTitle,
+                institute_or_board: 'BISE Bahawalpur / PBTE',
+                passing_year: new Date().getFullYear() - 1,
+                roll_number: '',
+                total_marks: 1100,
+                obtained_marks: '',
+                grade_or_division: '',
+                transcript_scan: null,
+                transcript_scan_url: null,
+            },
+        ]);
+    };
+
+    const removeEducationRow = (indexToRemove) => {
+        if (data.educations.length <= 1) return;
+        const updated = data.educations.filter((_, i) => i !== indexToRemove);
+        setData('educations', updated);
+    };
+
+    const handleEducationChange = (index, field, value) => {
+        const updated = [...data.educations];
+        updated[index] = {
+            ...updated[index],
+            [field]: value,
+        };
+
+        // Sync legacy matric/intermediate marks in state
+        if (updated[index].degree_level === 'matric') {
+            if (field === 'total_marks') setData('matric_total_marks', value);
+            if (field === 'obtained_marks') setData('matric_obtained_marks', value);
+        } else if (updated[index].degree_level === 'intermediate') {
+            if (field === 'total_marks') setData('intermediate_total_marks', value);
+            if (field === 'obtained_marks') setData('intermediate_obtained_marks', value);
+        }
+
+        setData('educations', updated);
+    };
+
+    const handleEducationTranscript = (index, file) => {
+        const updated = [...data.educations];
+        updated[index] = {
+            ...updated[index],
+            transcript_scan: file,
+        };
+        // Auto-link to academic_document if matric
+        if (updated[index].degree_level === 'matric' && !data.academic_document) {
+            setData('academic_document', file);
+            setAcademicFileName(file.name);
+            setAcademicFileSize(formatFileSize(file.size));
+        }
+        setData('educations', updated);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         setClientValidationWarning(null);
 
         // Pre-flight client checks with descriptive user guidance
-        if (!data.cnic || !data.father_name || !data.matric_obtained_marks) {
-            setClientValidationWarning('Step 1 Incomplete: Please make sure Father Name, CNIC, and Matriculation Obtained Marks are filled before submitting.');
+        if (!data.cnic || !data.father_name) {
+            setClientValidationWarning('Step 1 Incomplete: Candidate Father Name and CNIC / B-Form number are required.');
+            setCurrentStep(1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        const matricEdu = data.educations?.find(e => e.degree_level === 'matric') || data.educations?.[0];
+        if (!matricEdu || !matricEdu.obtained_marks) {
+            setClientValidationWarning('Step 1 Incomplete: Please enter your Matriculation obtained marks in the Educational Qualifications section.');
             setCurrentStep(1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
@@ -125,8 +304,16 @@ export default function Create({ campaign, courses = [], profile, existingApplic
             return;
         }
 
-        if (!data.cnic_document || !data.academic_document) {
-            setClientValidationWarning('Step 3 Incomplete: Both CNIC/B-Form and Academic Certificate documents are required. Please attach or capture photos of them.');
+        const hasTranscriptScan = data.educations?.some(e => e.transcript_scan);
+        if (!data.cnic_document) {
+            setClientValidationWarning('Step 3 Incomplete: Please upload or capture your CNIC / B-Form document in Step 3.');
+            setCurrentStep(3);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (!data.academic_document && !hasTranscriptScan) {
+            setClientValidationWarning('Step 3 Incomplete: Please upload your Matric academic certificate document or attach a transcript scan.');
             setCurrentStep(3);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
@@ -137,7 +324,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
             onError: (errs) => {
                 if (errs.cnic_document || errs.academic_document) {
                     setCurrentStep(3);
-                } else if (errs.cnic || errs.father_name || errs.matric_obtained_marks || errs.matric_total_marks) {
+                } else if (errs.cnic || errs.father_name || errs['educations.0.obtained_marks'] || errs.matric_obtained_marks) {
                     setCurrentStep(1);
                 } else if (errs.course_id) {
                     setCurrentStep(2);
@@ -148,7 +335,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
     };
 
     const stepErrors = {
-        1: Boolean(errors.cnic || errors.father_name || errors.matric_obtained_marks || errors.matric_total_marks),
+        1: Boolean(errors.cnic || errors.father_name || errors.matric_obtained_marks || errors['educations.0.obtained_marks']),
         2: Boolean(errors.course_id),
         3: Boolean(errors.cnic_document || errors.academic_document || fileErrors.cnic_document || fileErrors.academic_document),
         4: false,
@@ -158,15 +345,12 @@ export default function Create({ campaign, courses = [], profile, existingApplic
 
     const selectedCourseObj = courses.find((c) => String(c.id) === String(data.course_id));
 
-    const matricPercent = data.matric_total_marks && data.matric_obtained_marks
-        ? ((Number(data.matric_obtained_marks) / Number(data.matric_total_marks)) * 100).toFixed(1)
+    const matricRow = data.educations?.find(e => e.degree_level === 'matric') || data.educations?.[0];
+    const matricPercent = matricRow?.total_marks && matricRow?.obtained_marks
+        ? ((Number(matricRow.obtained_marks) / Number(matricRow.total_marks)) * 100).toFixed(1)
         : null;
 
-    const interPercent = data.intermediate_total_marks && data.intermediate_obtained_marks
-        ? ((Number(data.intermediate_obtained_marks) / Number(data.intermediate_total_marks)) * 100).toFixed(1)
-        : null;
-
-    const isStep1Valid = Boolean(data.cnic && data.father_name && data.matric_obtained_marks);
+    const isStep1Valid = Boolean(data.cnic && data.father_name && matricRow?.obtained_marks);
 
     const steps = [
         { id: 1, label: 'Identity & Marks', title: 'Applicant & Academic Scores', icon: UserCheck },
@@ -290,7 +474,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                     </div>
 
                                     {/* Application Details Grid */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
                                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                                             <span className="text-gray-500 font-bold block mb-1">Applicant Name</span>
                                             <span className="font-extrabold text-gray-900 text-sm">{user.name}</span>
@@ -298,6 +482,16 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                                             <span className="text-gray-500 font-bold block mb-1">CNIC / Form-B</span>
                                             <span className="font-mono font-bold text-gray-900 text-sm">{user.cnic || profile?.cnic || 'Recorded'}</span>
+                                        </div>
+                                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                                            <span className="text-gray-500 font-bold block mb-1">Training Shift</span>
+                                            <span className={`inline-flex items-center space-x-1 font-bold text-xs px-2 py-0.5 rounded-md ${
+                                                existingApplication.shift === 'Evening'
+                                                    ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                            }`}>
+                                                <span>{existingApplication.shift === 'Evening' ? '🌙 Evening' : '🌅 Morning'}</span>
+                                            </span>
                                         </div>
                                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                                             <span className="text-gray-500 font-bold block mb-1">Admissions Scrutiny</span>
@@ -468,163 +662,424 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                         <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 sm:p-7">
                             <form onSubmit={handleSubmit} className="space-y-6">
 
-                                {/* STEP 1: IDENTITY & ACADEMIC MARKS */}
+                                {/* STEP 1: BIOGRAPHICAL IDENTITY & MULTI-TIER EDUCATIONAL INTAKE */}
                                 {currentStep === 1 && (
-                                    <div className="space-y-5 animate-in fade-in duration-200">
+                                    <div className="space-y-6 animate-in fade-in duration-200">
                                         <div className="pb-3 border-b border-gray-100 flex items-center justify-between">
                                             <div>
                                                 <h4 className="text-base font-black text-gray-900 font-serif">
-                                                    Step 1: Applicant Identity & Academic Marks Verification
+                                                    Step 1: Applicant Identity & Educational History
                                                 </h4>
                                                 <p className="text-xs text-gray-500">
-                                                    Confirm your CNIC, Father Name, and Matriculation score for admission scrutiny
+                                                    Complete your biographical profile and record your academic qualifications
                                                 </p>
                                             </div>
+                                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 hidden sm:inline-block">
+                                                Intake Registry Phase 36
+                                            </span>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                                            {/* Candidate Full Name */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                    Candidate Full Name
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    disabled
-                                                    value={user.name}
-                                                    className="w-full px-3.5 py-2.5 bg-slate-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-not-allowed"
-                                                />
+                                        {/* Card 1: Candidate Biographical Information */}
+                                        <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                                            <div className="flex items-center space-x-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                                <User className="h-4 w-4 text-emerald-600" />
+                                                <span>1. Candidate Personal & Biographical Identity</span>
                                             </div>
 
-                                            {/* Father / Guardian Name */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                    Father / Guardian Name <span className="text-rose-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    placeholder="Enter father name"
-                                                    value={data.father_name}
-                                                    onChange={(e) => setData('father_name', e.target.value)}
-                                                    className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
-                                                />
-                                                {errors.father_name && <p className="text-rose-500 text-[11px] mt-0.5">{errors.father_name}</p>}
-                                            </div>
-
-                                            {/* CNIC / B-Form Number */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                    CNIC / B-Form Number <span className="text-rose-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    placeholder="31202-1234567-1"
-                                                    maxLength="15"
-                                                    value={data.cnic}
-                                                    onChange={(e) => setData('cnic', e.target.value)}
-                                                    className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
-                                                />
-                                                {errors.cnic && <p className="text-rose-500 text-[11px] mt-0.5">{errors.cnic}</p>}
-                                                <span className="text-[10px] text-slate-400 mt-0.5 block">Required for institutional test screening & TEVTA record.</span>
-                                            </div>
-
-                                            {/* Domicile District */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                    Domicile District
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    disabled
-                                                    value={profile?.domicile_district || 'Rahim Yar Khan'}
-                                                    className="w-full px-3.5 py-2.5 bg-slate-100 border border-gray-200 rounded-xl text-xs text-gray-700 cursor-not-allowed"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Academic Qualifications Section */}
-                                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                                                    <BookOpen className="h-4 w-4 text-govt-green" />
-                                                    <span>Matriculation (SSC / 10th) Scores *</span>
-                                                </span>
-                                                {matricPercent && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono">
-                                                        Matric: {matricPercent}%
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                                                {/* Candidate Full Name */}
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Total Marks *</label>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Candidate Full Name <span className="text-rose-500">*</span>
+                                                    </label>
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         required
-                                                        min="100"
-                                                        max="1500"
-                                                        value={data.matric_total_marks}
-                                                        onChange={(e) => setData('matric_total_marks', e.target.value)}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900"
+                                                        placeholder="Full Name as per CNIC/Matric"
+                                                        value={data.name}
+                                                        onChange={(e) => setData('name', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                    {errors.name && <p className="text-rose-500 text-[11px] mt-0.5">{errors.name}</p>}
+                                                </div>
+
+                                                {/* Father's Name */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Father's Name <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        placeholder="Father Name as per Matric"
+                                                        value={data.father_name}
+                                                        onChange={(e) => setData('father_name', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                    {errors.father_name && <p className="text-rose-500 text-[11px] mt-0.5">{errors.father_name}</p>}
+                                                </div>
+
+                                                {/* CNIC / B-Form Number */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        CNIC / B-Form Number <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        placeholder="31202-1234567-1"
+                                                        maxLength="15"
+                                                        value={data.cnic}
+                                                        onChange={handleCnicInput}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                    {errors.cnic && <p className="text-rose-500 text-[11px] mt-0.5">{errors.cnic}</p>}
+                                                    <span className="text-[10px] text-slate-400 mt-0.5 block">Format: XXXXX-XXXXXXX-X</span>
+                                                </div>
+
+                                                {/* Guardian Name */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Guardian Name (If different from father)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Guardian Name (Optional)"
+                                                        value={data.guardian_name}
+                                                        onChange={(e) => setData('guardian_name', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
                                                     />
                                                 </div>
+
+                                                {/* Guardian Phone */}
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Obtained Marks *</label>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Guardian / Emergency Phone
+                                                    </label>
                                                     <input
-                                                        type="number"
-                                                        required
-                                                        min="0"
-                                                        max={data.matric_total_marks || 1500}
-                                                        placeholder="e.g. 850"
-                                                        value={data.matric_obtained_marks}
-                                                        onChange={(e) => setData('matric_obtained_marks', e.target.value)}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900"
+                                                        type="text"
+                                                        placeholder="0300-1234567"
+                                                        value={data.guardian_phone}
+                                                        onChange={(e) => setData('guardian_phone', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
                                                     />
+                                                </div>
+
+                                                {/* Date of Birth */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Date of Birth <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        required
+                                                        value={data.dob}
+                                                        onChange={(e) => setData('dob', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                    {errors.dob && <p className="text-rose-500 text-[11px] mt-0.5">{errors.dob}</p>}
+                                                </div>
+
+                                                {/* Gender */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Gender <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={data.gender}
+                                                        onChange={(e) => setData('gender', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400 cursor-pointer"
+                                                    >
+                                                        <option value="male">Male</option>
+                                                        <option value="female">Female</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Domicile District */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Domicile District <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        placeholder="e.g. Rahim Yar Khan"
+                                                        value={data.domicile_district}
+                                                        onChange={(e) => setData('domicile_district', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                </div>
+
+                                                {/* Religion */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Religion
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Islam, Christianity, Hinduism, etc."
+                                                        value={data.religion}
+                                                        onChange={(e) => setData('religion', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                </div>
+
+                                                {/* Present Address */}
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Present / Postal Residential Address
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Current street address, colony, city..."
+                                                        value={data.address}
+                                                        onChange={(e) => setData('address', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                </div>
+
+                                                {/* Permanent Address */}
+                                                <div className="sm:col-span-2">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className="block text-xs font-bold text-gray-700">
+                                                            Permanent Address (As on CNIC)
+                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setData('permanent_address', data.address)}
+                                                            className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                                                        >
+                                                            Copy Present Address
+                                                        </button>
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Permanent address as recorded on CNIC..."
+                                                        value={data.permanent_address}
+                                                        onChange={(e) => setData('permanent_address', e.target.value)}
+                                                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                    />
+                                                </div>
+
+                                                {/* Candidate Profile Photo */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                        Candidate Photo (Optional)
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => setData('profile_picture', e.target.files?.[0])}
+                                                        className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                                                    />
+                                                    <span className="text-[10px] text-gray-400 mt-0.5 block">Blue background passport photo</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Optional Intermediate Marks */}
-                                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                                                    <GraduationCap className="h-4 w-4 text-amber-600" />
-                                                    <span>Intermediate / F.Sc / DAE (Optional / If Applicable)</span>
-                                                </span>
-                                                {interPercent && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300 font-mono">
-                                                        Inter: {interPercent}%
-                                                    </span>
-                                                )}
+                                        {/* Card 2: Dynamic Multi-Tier Educational History */}
+                                        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200 space-y-4 shadow-xs">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100">
+                                                <div>
+                                                    <h5 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                                                        <BookOpen className="h-4 w-4 text-emerald-600" />
+                                                        <span>2. Multi-Tier Educational Qualifications History</span>
+                                                    </h5>
+                                                    <p className="text-[11px] text-gray-500">
+                                                        Matriculation is mandatory. Add Intermediate, DAE, Bachelor's or Vocational diplomas dynamically.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={addEducationRow}
+                                                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 text-xs font-bold transition self-start sm:self-auto cursor-pointer"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    <span>Add Higher / Vocational Qualification</span>
+                                                </button>
                                             </div>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Total Marks</label>
-                                                    <input
-                                                        type="number"
-                                                        min="100"
-                                                        max="1500"
-                                                        value={data.intermediate_total_marks}
-                                                        onChange={(e) => setData('intermediate_total_marks', e.target.value)}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Obtained Marks</label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        max={data.intermediate_total_marks || 1500}
-                                                        placeholder="e.g. 780"
-                                                        value={data.intermediate_obtained_marks}
-                                                        onChange={(e) => setData('intermediate_obtained_marks', e.target.value)}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono font-bold text-gray-900"
-                                                    />
-                                                </div>
+                                            {/* Dynamic Education Rows */}
+                                            <div className="space-y-4">
+                                                {data.educations.map((edu, idx) => {
+                                                    const isMatric = edu.degree_level === 'matric';
+                                                    const rowPercent = edu.total_marks && edu.obtained_marks
+                                                        ? ((Number(edu.obtained_marks) / Number(edu.total_marks)) * 100).toFixed(1)
+                                                        : null;
+
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            className={`p-4 rounded-xl border transition ${
+                                                                isMatric
+                                                                    ? 'bg-emerald-50/40 border-emerald-200'
+                                                                    : 'bg-slate-50 border-slate-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center justify-between pb-2 mb-3 border-b border-gray-200/70">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
+                                                                        isMatric
+                                                                            ? 'bg-emerald-200 text-emerald-900'
+                                                                            : 'bg-indigo-100 text-indigo-800'
+                                                                    }`}>
+                                                                        #{idx + 1} {edu.degree_level}
+                                                                    </span>
+                                                                    <span className="font-bold text-xs text-gray-800">
+                                                                        {isMatric ? 'Matriculation / SSC (Mandatory)' : edu.degree_title || 'Additional Qualification'}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="flex items-center space-x-2">
+                                                                    {rowPercent && (
+                                                                        <span className="px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono">
+                                                                            {rowPercent}%
+                                                                        </span>
+                                                                    )}
+                                                                    {!isMatric && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => removeEducationRow(idx)}
+                                                                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition cursor-pointer"
+                                                                            title="Remove this qualification"
+                                                                        >
+                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                                                                {/* Degree Level */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Qualification Level <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <select
+                                                                        value={edu.degree_level}
+                                                                        onChange={(e) => handleEducationChange(idx, 'degree_level', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-govt-green-400 cursor-pointer"
+                                                                    >
+                                                                        <option value="matric">Matriculation / SSC / 10th</option>
+                                                                        <option value="intermediate">Intermediate / HSSC / 12th</option>
+                                                                        <option value="dae">DAE (Associate Engineer)</option>
+                                                                        <option value="bachelors">Bachelor's Degree (BS / BA / BSc)</option>
+                                                                        <option value="diploma_vocational">Vocational Diploma / Short Course</option>
+                                                                        <option value="other">Other Certification</option>
+                                                                    </select>
+                                                                </div>
+
+                                                                {/* Degree Title */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Degree / Certificate Title <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        required
+                                                                        placeholder="e.g. Science, Pre-Engineering, DAE Civil"
+                                                                        value={edu.degree_title}
+                                                                        onChange={(e) => handleEducationChange(idx, 'degree_title', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Board / Institute */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Board or Institution <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        required
+                                                                        placeholder="e.g. BISE Bahawalpur, PBTE Lahore"
+                                                                        value={edu.institute_or_board}
+                                                                        onChange={(e) => handleEducationChange(idx, 'institute_or_board', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Passing Year */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Passing Year <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        required
+                                                                        min="1970"
+                                                                        max={new Date().getFullYear() + 1}
+                                                                        value={edu.passing_year}
+                                                                        onChange={(e) => handleEducationChange(idx, 'passing_year', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Total Marks */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Total Marks <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        required
+                                                                        min="1"
+                                                                        max="2000"
+                                                                        value={edu.total_marks}
+                                                                        onChange={(e) => handleEducationChange(idx, 'total_marks', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Obtained Marks */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Obtained Marks <span className="text-rose-500">*</span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        required
+                                                                        min="0"
+                                                                        max={edu.total_marks || 2000}
+                                                                        placeholder="e.g. 850"
+                                                                        value={edu.obtained_marks}
+                                                                        onChange={(e) => handleEducationChange(idx, 'obtained_marks', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Roll Number */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Roll Number (Optional)
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="e.g. 123456"
+                                                                        value={edu.roll_number}
+                                                                        onChange={(e) => handleEducationChange(idx, 'roll_number', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono text-gray-900 focus:ring-2 focus:ring-govt-green-400"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Transcript Scan Upload */}
+                                                                <div>
+                                                                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                                                        Result Card / Transcript Scan
+                                                                    </label>
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/*,.pdf"
+                                                                        onChange={(e) => handleEducationTranscript(idx, e.target.files?.[0])}
+                                                                        className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 file:text-slate-800 hover:file:bg-slate-300 cursor-pointer"
+                                                                    />
+                                                                    <span className="text-[10px] text-gray-400 mt-0.5 block">PDF or Image (Max 20MB)</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
 
@@ -633,7 +1088,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                                 type="button"
                                                 disabled={!isStep1Valid}
                                                 onClick={() => setCurrentStep(2)}
-                                                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-govt-green hover:bg-govt-green-500 disabled:opacity-50 text-white font-bold text-sm transition flex items-center justify-center space-x-2 shadow-md min-h-[48px]"
+                                                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-govt-green hover:bg-govt-green-500 disabled:opacity-50 text-white font-bold text-sm transition flex items-center justify-center space-x-2 shadow-md min-h-[48px] cursor-pointer"
                                             >
                                                 <span>Proceed to Course Selection</span>
                                                 <ChevronRight className="h-4 w-4" />
@@ -660,7 +1115,7 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                             </label>
                                             <select
                                                 value={data.course_id}
-                                                onChange={(e) => setData('course_id', e.target.value)}
+                                                onChange={(e) => handleCourseChange(e.target.value)}
                                                 className={`w-full px-4 py-3.5 bg-white border rounded-xl text-base sm:text-xs text-gray-900 font-semibold focus:outline-none focus:ring-2 min-h-[48px] ${
                                                     errors.course_id
                                                         ? 'border-rose-500 focus:ring-rose-500/30'
@@ -679,6 +1134,168 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                             </select>
                                             {errors.course_id && (
                                                 <p className="text-xs text-rose-500">{errors.course_id}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Shift Selection: Morning vs Evening */}
+                                        <div className="space-y-2 pt-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                                    Select Training Shift / Batch <span className="text-rose-500">*</span>
+                                                </label>
+                                                <span className="text-[11px] font-semibold text-gray-500">
+                                                    {selectedCourseObj?.offered_shifts === 'Morning' 
+                                                        ? '🌅 Morning Shift Only' 
+                                                        : selectedCourseObj?.offered_shifts === 'Evening'
+                                                            ? '🌙 Evening Shift Only'
+                                                            : 'Morning & Evening Batches Available'}
+                                                </span>
+                                            </div>
+
+                                            {/* Shift Availability Guidance Banner */}
+                                            {selectedCourseObj && selectedCourseObj.offered_shifts === 'Morning' && (
+                                                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center space-x-2">
+                                                    <span className="text-base">🌅</span>
+                                                    <span>
+                                                        <strong>{selectedCourseObj.name}</strong> is offered exclusively in the <strong>Morning Shift</strong> (08:00 AM – 01:30 PM). Evening shift is unavailable for this trade.
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {selectedCourseObj && selectedCourseObj.offered_shifts === 'Evening' && (
+                                                <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold flex items-center space-x-2">
+                                                    <span className="text-base">🌙</span>
+                                                    <span>
+                                                        <strong>{selectedCourseObj.name}</strong> is offered exclusively in the <strong>Evening Shift</strong> (02:00 PM – 07:00 PM). Morning shift is unavailable for this trade.
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {(() => {
+                                                const offersMorning = !selectedCourseObj || selectedCourseObj.offered_shifts === 'Both' || selectedCourseObj.offered_shifts === 'Morning';
+                                                const offersEvening = !selectedCourseObj || selectedCourseObj.offered_shifts === 'Both' || selectedCourseObj.offered_shifts === 'Evening';
+
+                                                return (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        {/* Morning Option */}
+                                                        <div
+                                                            onClick={() => {
+                                                                if (offersMorning) handleShiftChange('Morning');
+                                                            }}
+                                                            className={`p-4 rounded-2xl border-2 transition-all duration-150 flex flex-col justify-between space-y-3 ${
+                                                                !offersMorning
+                                                                    ? 'opacity-40 bg-gray-50 border-gray-200 cursor-not-allowed'
+                                                                    : data.shift === 'Morning'
+                                                                        ? 'border-emerald-600 bg-emerald-50/80 shadow-sm ring-1 ring-emerald-600/30 cursor-pointer'
+                                                                        : 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex items-center space-x-2.5">
+                                                                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xl ${
+                                                                        !offersMorning
+                                                                            ? 'bg-gray-200 text-gray-400'
+                                                                            : data.shift === 'Morning' ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800'
+                                                                    }`}>
+                                                                        🌅
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="flex items-center space-x-1.5">
+                                                                            <h5 className="text-sm font-black text-gray-900">Morning Shift</h5>
+                                                                            {!offersMorning && (
+                                                                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">
+                                                                                    Unavailable
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-[11px] font-semibold text-gray-500">
+                                                                            {offersMorning ? '08:00 AM – 01:30 PM (Regular)' : 'Not offered for this trade'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <input
+                                                                    type="radio"
+                                                                    name="shift"
+                                                                    value="Morning"
+                                                                    disabled={!offersMorning}
+                                                                    checked={data.shift === 'Morning'}
+                                                                    onChange={() => {
+                                                                        if (offersMorning) handleShiftChange('Morning');
+                                                                    }}
+                                                                    className="text-emerald-600 focus:ring-emerald-500 h-4 w-4 mt-1 cursor-pointer disabled:cursor-not-allowed"
+                                                                />
+                                                            </div>
+                                                            <div className="text-[11px] text-gray-600 pt-2 border-t border-gray-200/60 flex items-center justify-between">
+                                                                <span className="font-semibold">Allocated Batch:</span>
+                                                                <span className="font-bold text-emerald-800 font-mono">
+                                                                    {offersMorning 
+                                                                        ? (selectedCourseObj?.batches?.find((b) => b.shift?.toLowerCase() === 'morning')?.name || 'Fall 2026 - Morning Batch')
+                                                                        : 'N/A (Shift not offered)'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Evening Option */}
+                                                        <div
+                                                            onClick={() => {
+                                                                if (offersEvening) handleShiftChange('Evening');
+                                                            }}
+                                                            className={`p-4 rounded-2xl border-2 transition-all duration-150 flex flex-col justify-between space-y-3 ${
+                                                                !offersEvening
+                                                                    ? 'opacity-40 bg-gray-50 border-gray-200 cursor-not-allowed'
+                                                                    : data.shift === 'Evening'
+                                                                        ? 'border-indigo-600 bg-indigo-50/80 shadow-sm ring-1 ring-indigo-600/30 cursor-pointer'
+                                                                        : 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex items-center space-x-2.5">
+                                                                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xl ${
+                                                                        !offersEvening
+                                                                            ? 'bg-gray-200 text-gray-400'
+                                                                            : data.shift === 'Evening' ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800'
+                                                                    }`}>
+                                                                        🌙
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="flex items-center space-x-1.5">
+                                                                            <h5 className="text-sm font-black text-gray-900">Evening Shift</h5>
+                                                                            {!offersEvening && (
+                                                                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">
+                                                                                    Unavailable
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-[11px] font-semibold text-gray-500">
+                                                                            {offersEvening ? '02:00 PM – 07:00 PM (2nd Shift)' : 'Not offered for this trade'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <input
+                                                                    type="radio"
+                                                                    name="shift"
+                                                                    value="Evening"
+                                                                    disabled={!offersEvening}
+                                                                    checked={data.shift === 'Evening'}
+                                                                    onChange={() => {
+                                                                        if (offersEvening) handleShiftChange('Evening');
+                                                                    }}
+                                                                    className="text-indigo-600 focus:ring-indigo-500 h-4 w-4 mt-1 cursor-pointer disabled:cursor-not-allowed"
+                                                                />
+                                                            </div>
+                                                            <div className="text-[11px] text-gray-600 pt-2 border-t border-gray-200/60 flex items-center justify-between">
+                                                                <span className="font-semibold">Allocated Batch:</span>
+                                                                <span className="font-bold text-indigo-800 font-mono">
+                                                                    {offersEvening 
+                                                                        ? (selectedCourseObj?.batches?.find((b) => b.shift?.toLowerCase() === 'evening')?.name || 'Fall 2026 - Evening Batch')
+                                                                        : 'N/A (Shift not offered)'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {errors.shift && (
+                                                <p className="text-xs text-rose-500 font-bold">{errors.shift}</p>
                                             )}
                                         </div>
 
@@ -716,33 +1333,52 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                                         </div>
                                                     )}
 
-                                                    {/* Official Advertisement Flyer Preview if attached */}
+                                                    {/* Official Advertisement Flyer Showcase if attached */}
                                                     {(selectedCourseObj.advertisement_url || selectedCourseObj.advertisement_image_path) && (
-                                                        <div className="mt-3 pt-3 border-t border-dashed border-slate-300 flex items-center justify-between gap-3 bg-white/80 p-2.5 rounded-xl border border-slate-200">
-                                                            <div className="flex items-center space-x-2.5 min-w-0">
-                                                                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0">
+                                                        <div className="mt-4 pt-4 border-t border-slate-200">
+                                                            <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-md border border-slate-800">
+                                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                                                    <div className="flex items-center space-x-2.5">
+                                                                        <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                                                            <ImageIcon className="w-4 h-4" />
+                                                                        </span>
+                                                                        <div>
+                                                                            <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                                                                                Official Intake Flyer & Course Advertisement
+                                                                            </h4>
+                                                                            <p className="text-[11px] text-slate-400">
+                                                                                Authorized prospectus by Government Technical Training Institute (TEVTA)
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setActiveAdFlyer(selectedCourseObj)}
+                                                                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center space-x-1.5 transition shadow-sm shrink-0"
+                                                                    >
+                                                                        <Eye className="w-3.5 h-3.5" />
+                                                                        <span>Enlarge Flyer (HQ)</span>
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Clickable Image Banner */}
+                                                                <div
+                                                                    onClick={() => setActiveAdFlyer(selectedCourseObj)}
+                                                                    className="relative h-60 sm:h-72 w-full rounded-xl overflow-hidden border border-slate-700 bg-black/70 group/flyer cursor-pointer"
+                                                                >
                                                                     <img
                                                                         src={selectedCourseObj.advertisement_url || `/storage/${selectedCourseObj.advertisement_image_path}`}
-                                                                        alt="Course Ad Flyer"
-                                                                        className="w-full h-full object-cover"
+                                                                        alt="Course Intake Advertisement"
+                                                                        className="w-full h-full object-contain object-center group-hover/flyer:scale-[1.02] transition-transform duration-300"
                                                                     />
-                                                                </div>
-                                                                <div className="truncate">
-                                                                    <div className="text-xs font-bold text-slate-900 flex items-center space-x-1">
-                                                                        <ImageIcon className="w-3.5 h-3.5 text-emerald-700 inline" />
-                                                                        <span>Official Intake Flyer / Advertisement</span>
+                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/flyer:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                                                                        <span className="px-4 py-2 rounded-full bg-white text-slate-900 font-extrabold text-xs flex items-center space-x-2 shadow-xl">
+                                                                            <Eye className="w-4 h-4 text-emerald-700" />
+                                                                            <span>Click to Inspect High-Resolution Fullscreen Flyer</span>
+                                                                        </span>
                                                                     </div>
-                                                                    <p className="text-[11px] text-slate-500 truncate">Course prospectus & syllabus highlights</p>
                                                                 </div>
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setActiveAdFlyer(selectedCourseObj)}
-                                                                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center space-x-1.5 transition flex-shrink-0 shadow-sm"
-                                                            >
-                                                                <Eye className="w-3.5 h-3.5" />
-                                                                <span>View Flyer</span>
-                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -952,89 +1588,127 @@ export default function Create({ campaign, courses = [], profile, existingApplic
                                             </div>
                                         )}
 
-                                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3 text-xs">
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">Candidate Name</span>
-                                                <span className="font-extrabold text-gray-900">{user.name}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">Father's Name</span>
-                                                <span className="font-extrabold text-gray-900">{data.father_name || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">CNIC / Form-B</span>
-                                                <span className="font-mono font-bold text-gray-900">{data.cnic || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">Matric Marks</span>
-                                                <span className="font-mono font-bold text-gray-900">
-                                                    {data.matric_obtained_marks} / {data.matric_total_marks} ({matricPercent}%)
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">Selected Trade & Course</span>
-                                                <span className="font-extrabold text-govt-green">{selectedCourseObj?.name || 'None selected'}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">Admission Mode</span>
-                                                <span className="font-extrabold text-slate-800">
-                                                    {selectedCourseObj?.admission_type === 'first_come_first_served' || selectedCourseObj?.requires_entrance_test === false
-                                                        ? '⚡ Track B: Direct Admission (FCFS - Instant Challan)'
-                                                        : '🎓 Track A: Merit-Based (Entrance Test Required)'}
-                                                </span>
-                                            </div>
-                                            {(selectedCourseObj?.advertisement_url || selectedCourseObj?.advertisement_image_path) && (
-                                                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                    <span className="font-bold text-gray-500">Course Intake Flyer</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setActiveAdFlyer(selectedCourseObj)}
-                                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1 hover:underline"
-                                                    >
-                                                        <ImageIcon className="w-3.5 h-3.5 inline mr-1" />
-                                                        <span>View Official Flyer</span>
-                                                    </button>
+                                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4 text-xs">
+                                            {/* Candidate Personal Details */}
+                                            <div className="space-y-2">
+                                                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px] pb-1 border-b border-gray-200 flex items-center gap-1.5">
+                                                    <User className="h-3.5 w-3.5 text-emerald-600" />
+                                                    <span>Candidate Identity & Biographical Summary</span>
                                                 </div>
-                                            )}
-                                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                                                <span className="font-bold text-gray-500">CNIC Document</span>
-                                                {data.cnic_document ? (
-                                                    <span className="font-bold text-emerald-700 flex items-center space-x-1">
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-600 inline mr-1" />
-                                                        <span>✓ {cnicFileName}</span>
-                                                    </span>
-                                                ) : (
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="font-bold text-rose-600">❌ Missing (Required)</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setCurrentStep(3)}
-                                                            className="px-2 py-0.5 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[10px]"
-                                                        >
-                                                            Upload in Step 3
-                                                        </button>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">Candidate Name</span>
+                                                        <span className="font-extrabold text-gray-900">{data.name || user.name}</span>
                                                     </div>
-                                                )}
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">Father's Name</span>
+                                                        <span className="font-extrabold text-gray-900">{data.father_name || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">CNIC / Form-B</span>
+                                                        <span className="font-mono font-bold text-gray-900">{data.cnic || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">DOB & Gender</span>
+                                                        <span className="font-medium text-gray-900">{data.dob} ({data.gender})</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">Guardian</span>
+                                                        <span className="font-medium text-gray-900">{data.guardian_name || 'Father'} {data.guardian_phone ? `(${data.guardian_phone})` : ''}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500 block text-[11px]">Domicile & Religion</span>
+                                                        <span className="font-medium text-gray-900">{data.domicile_district} &bull; {data.religion}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-gray-500">Education Certificate</span>
-                                                {data.academic_document ? (
-                                                    <span className="font-bold text-emerald-700 flex items-center space-x-1">
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-600 inline mr-1" />
-                                                        <span>✓ {academicFileName}</span>
-                                                    </span>
-                                                ) : (
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="font-bold text-rose-600">❌ Missing (Required)</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setCurrentStep(3)}
-                                                            className="px-2 py-0.5 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[10px]"
-                                                        >
-                                                            Upload in Step 3
-                                                        </button>
+
+                                            {/* Multi-Tier Educational History Summary */}
+                                            <div className="space-y-2 pt-2 border-t border-gray-200">
+                                                <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px] pb-1 flex items-center justify-between">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+                                                        <span>Educational Qualifications Recorded</span>
                                                     </div>
-                                                )}
+                                                    <span className="text-[10px] font-mono text-gray-500">
+                                                        {data.educations.length} Qualification(s)
+                                                    </span>
+                                                </div>
+                                                <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                                                    <table className="w-full text-left text-xs text-gray-700">
+                                                        <thead className="bg-gray-100 text-[10px] font-bold uppercase text-gray-500 border-b border-gray-200">
+                                                            <tr>
+                                                                <th className="py-2 px-3">Level & Title</th>
+                                                                <th className="py-2 px-3">Board / Institute</th>
+                                                                <th className="py-2 px-3">Year</th>
+                                                                <th className="py-2 px-3">Marks</th>
+                                                                <th className="py-2 px-3">Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {data.educations.map((edu, i) => {
+                                                                const pct = edu.total_marks && edu.obtained_marks
+                                                                    ? ((Number(edu.obtained_marks) / Number(edu.total_marks)) * 100).toFixed(1)
+                                                                    : '0.0';
+                                                                return (
+                                                                    <tr key={i}>
+                                                                        <td className="py-2 px-3 font-semibold text-gray-900">
+                                                                            <span className="capitalize font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded mr-1.5">
+                                                                                {edu.degree_level}
+                                                                            </span>
+                                                                            {edu.degree_title}
+                                                                        </td>
+                                                                        <td className="py-2 px-3 text-gray-600">{edu.institute_or_board}</td>
+                                                                        <td className="py-2 px-3 font-mono text-[11px]">{edu.passing_year}</td>
+                                                                        <td className="py-2 px-3 font-mono font-bold">{edu.obtained_marks} / {edu.total_marks}</td>
+                                                                        <td className="py-2 px-3">
+                                                                            <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                                                                {pct}%
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            {/* Course & Shift Selection */}
+                                            <div className="space-y-2 pt-2 border-t border-gray-200">
+                                                <div className="flex items-center justify-between pb-1 border-b border-gray-200">
+                                                    <span className="font-bold text-gray-500">Selected Trade & Course</span>
+                                                    <span className="font-extrabold text-govt-green">{selectedCourseObj?.name || 'None selected'}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between pb-1 border-b border-gray-200">
+                                                    <span className="font-bold text-gray-500">Training Shift & Session</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                                                        data.shift === 'Evening'
+                                                            ? 'bg-indigo-100 text-indigo-800 border border-indigo-300'
+                                                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                                    }`}>
+                                                        {data.shift === 'Evening' ? '🌙 Evening Shift (02:00 PM – 07:00 PM)' : '🌅 Morning Shift (08:00 AM – 01:30 PM)'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between pb-1 border-b border-gray-200">
+                                                    <span className="font-bold text-gray-500">Admission Track</span>
+                                                    <span className="font-extrabold text-slate-800">
+                                                        {selectedCourseObj?.admission_type === 'first_come_first_served' || selectedCourseObj?.requires_entrance_test === false
+                                                            ? '⚡ Track B: Direct Admission (FCFS - Instant Challan)'
+                                                            : '🎓 Track A: Merit-Based (Entrance Test Required)'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-bold text-gray-500">CNIC Document Attached</span>
+                                                    {data.cnic_document ? (
+                                                        <span className="font-bold text-emerald-700 flex items-center space-x-1">
+                                                            <CheckCircle2 className="h-4 w-4 text-emerald-600 inline mr-1" />
+                                                            <span>✓ {cnicFileName}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="font-bold text-rose-600">❌ Missing (Required in Step 3)</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1101,58 +1775,59 @@ export default function Create({ campaign, courses = [], profile, existingApplic
             {/* Fullscreen Advertisement Flyer Lightbox Modal */}
             {activeAdFlyer && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-all animate-in fade-in"
+                    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 transition-all animate-in fade-in"
                     onClick={() => setActiveAdFlyer(null)}
                 >
                     <div
-                        className="relative bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
+                        className="relative bg-slate-950 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[92vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                            <div className="flex items-center space-x-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-800">
-                                    <ImageIcon className="w-4 h-4" />
+                        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
+                            <div className="flex items-center space-x-3">
+                                <div className="p-2 rounded-lg bg-emerald-950 border border-emerald-800/60">
+                                    <ImageIcon className="w-5 h-5 text-emerald-400" />
                                 </div>
                                 <div>
-                                    <h4 className="font-black text-sm text-slate-900">{activeAdFlyer.name}</h4>
-                                    <p className="text-[11px] text-slate-500 font-medium">Official Intake Flyer & Course Advertisement</p>
+                                    <h4 className="font-black text-sm text-white">{activeAdFlyer.name}</h4>
+                                    <p className="text-[11px] text-slate-400">Official Intake Flyer & Course Advertisement</p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setActiveAdFlyer(null)}
-                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition"
+                                className="p-2 rounded-lg bg-slate-800 hover:bg-rose-950/80 hover:text-rose-400 text-slate-400 transition"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto max-h-[65vh]">
+                        <div className="p-4 bg-slate-950/95 flex items-center justify-center overflow-auto max-h-[75vh]">
                             <img
                                 src={activeAdFlyer.advertisement_url || `/storage/${activeAdFlyer.advertisement_image_path}`}
                                 alt={activeAdFlyer.name}
-                                className="max-h-[60vh] w-auto object-contain rounded-lg shadow-lg"
+                                className="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-xl border border-slate-800"
                             />
                         </div>
-                        <div className="p-3.5 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
-                            <span className="text-xs text-slate-600 font-medium">
-                                {activeAdFlyer.trade?.name || 'Technical Trade'} • Intake: {activeAdFlyer.intake_capacity} Seats
+                        <div className="p-3.5 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between text-xs text-slate-400 shrink-0">
+                            <span className="text-slate-300 font-medium">
+                                {activeAdFlyer.trade?.name || 'Technical Trade'} • Quota: <strong>{activeAdFlyer.intake_capacity ?? 50} Seats</strong>
                             </span>
                             <div className="flex items-center space-x-2">
                                 <a
                                     href={activeAdFlyer.advertisement_url || `/storage/${activeAdFlyer.advertisement_image_path}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center space-x-1"
+                                    download
+                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition flex items-center space-x-1 border border-slate-700"
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
-                                    <span>Open Full</span>
+                                    <span>Download / Open Full</span>
                                 </a>
                                 <button
                                     type="button"
                                     onClick={() => setActiveAdFlyer(null)}
-                                    className="px-4 py-1.5 rounded-lg bg-govt-green hover:bg-emerald-700 text-white text-xs font-bold transition"
+                                    className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow"
                                 >
-                                    Close
+                                    Done
                                 </button>
                             </div>
                         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ClerkLayout from '@/Layouts/ClerkLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import {
@@ -19,7 +19,9 @@ import {
     Upload,
     Image as ImageIcon,
     Eye,
-    X
+    X,
+    Download,
+    ExternalLink
 } from 'lucide-react';
 import Badge from '@/Components/UI/Badge';
 
@@ -30,6 +32,14 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
     const [createAdPreview, setCreateAdPreview] = useState(null);
     const [editAdPreview, setEditAdPreview] = useState(null);
     const [viewingAdCourse, setViewingAdCourse] = useState(null);
+    const tableContainerRef = useRef(null);
+
+    // Reset table horizontal scroll on load or after course update
+    useEffect(() => {
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollLeft = 0;
+        }
+    }, [courses]);
 
     // Form for creating course
     const createForm = useForm({
@@ -52,6 +62,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         interview_venue: 'Lab 3 / Interview Room',
         is_published: true,
         is_active: true,
+        offered_shifts: 'Both',
         syllabus_document: null,
         advertisement_image: null,
     });
@@ -78,6 +89,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         interview_venue: 'Lab 3 / Interview Room',
         is_published: true,
         is_active: true,
+        offered_shifts: 'Both',
         syllabus_document: null,
         advertisement_image: null,
         remove_advertisement: false,
@@ -122,6 +134,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
             interview_venue: course.interview_venue || 'Lab 3 / Interview Room',
             is_published: Boolean(course.is_published ?? true),
             is_active: Boolean(course.is_active ?? true),
+            offered_shifts: course.offered_shifts || 'Both',
             syllabus_document: null,
             advertisement_image: null,
             remove_advertisement: false,
@@ -182,7 +195,7 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
         >
             <Head title="Course Catalog & Lifecycle - Admission Clerk Desk" />
 
-            <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
                 {/* Header Action Bar */}
                 <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1">
@@ -212,71 +225,119 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                         <span className="text-xs text-slate-500 font-mono">Institutional Roster</span>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div ref={tableContainerRef} className="overflow-x-auto">
                         <table className="w-full text-left text-xs">
                             <thead className="bg-slate-950 text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th className="py-3 px-4">Course & Category</th>
-                                    <th className="py-3 px-4">Duration & Days</th>
-                                    <th className="py-3 px-4">Parent Trade</th>
-                                    <th className="py-3 px-4">Track & Quota</th>
-                                    <th className="py-3 px-4">Classes Start</th>
-                                    <th className="py-3 px-3 text-center">Public Status</th>
-                                    <th className="py-3 px-4 text-center">Applicants</th>
-                                    <th className="py-3 px-4 text-right">Actions</th>
+                                    <th className="py-3.5 pl-6 pr-3">Course & Details</th>
+                                    <th className="py-3.5 px-3 whitespace-nowrap">Duration & Schedule</th>
+                                    <th className="py-3.5 px-3 whitespace-nowrap">Track & Quota</th>
+                                    <th className="py-3.5 px-2 text-center whitespace-nowrap">Applicants</th>
+                                    <th className="py-3.5 px-2 text-center whitespace-nowrap">Status</th>
+                                    <th className="py-3.5 pr-6 pl-2 text-right whitespace-nowrap">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800 text-slate-300">
                                 {courses.map((course) => (
                                     <tr key={course.id} className="hover:bg-slate-800/50 transition">
-                                        <td className="py-3.5 px-4">
-                                            <div className="font-bold text-white text-sm">{course.name}</div>
-                                            <div className="flex items-center space-x-2 mt-1">
-                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">
-                                                    {course.category || 'General Vocational'}
-                                                </span>
-                                                {course.syllabus_document_path && (
-                                                    <span className="text-[10px] text-amber-400 flex items-center space-x-0.5">
-                                                        <FileText className="h-3 w-3" />
-                                                        <span>Syllabus Uploaded</span>
-                                                    </span>
-                                                )}
-                                                {course.advertisement_image_path && (
-                                                    <button
-                                                        type="button"
+                                        {/* Course & Details */}
+                                        <td className="py-3.5 pl-6 pr-3">
+                                            <div className="flex items-center space-x-3.5">
+                                                {/* Course Advertisement Flyer Thumbnail */}
+                                                {(course.advertisement_url || course.advertisement_image_path) ? (
+                                                    <div
                                                         onClick={() => setViewingAdCourse(course)}
-                                                        className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full cursor-pointer transition hover:bg-emerald-900/60"
-                                                        title="Click to view course advertisement flyer"
+                                                        className="relative w-11 h-11 rounded-xl overflow-hidden border border-emerald-700/60 bg-slate-950 shadow-sm shrink-0 cursor-pointer group/thumb hover:ring-2 hover:ring-emerald-400 transition"
+                                                        title="Click to view full course advertisement flyer"
                                                     >
-                                                        <ImageIcon className="h-3 w-3" />
-                                                        <span>Ad Flyer</span>
-                                                    </button>
+                                                        <img
+                                                            src={course.advertisement_url || `/storage/${course.advertisement_image_path}`}
+                                                            alt={course.name}
+                                                            className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform duration-200"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <Eye className="w-3.5 h-3.5 text-white" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        onClick={() => handleOpenEdit(course)}
+                                                        className="w-11 h-11 rounded-xl border border-slate-800 bg-slate-950/70 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:border-amber-500/40 transition shrink-0 cursor-pointer group/noad"
+                                                        title="No advertisement uploaded - Click to upload"
+                                                    >
+                                                        <ImageIcon className="w-4 h-4 text-slate-600 group-hover/noad:text-amber-400 transition" />
+                                                    </div>
                                                 )}
+
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-white text-sm leading-snug truncate">
+                                                        {course.name}
+                                                    </div>
+
+                                                    {/* Trade & Department context */}
+                                                    <div className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                                                        {course.trade?.name || 'General Vocational'}
+                                                        {course.trade?.program?.department?.name && ` • ${course.trade.program.department.name}`}
+                                                    </div>
+
+                                                    {/* Shift & Category Badges */}
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">
+                                                            {course.category || 'Vocational'}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                            course.offered_shifts === 'Morning'
+                                                                ? 'bg-amber-950/60 text-amber-300 border border-amber-800'
+                                                                : course.offered_shifts === 'Evening'
+                                                                    ? 'bg-purple-950/60 text-purple-300 border border-purple-800'
+                                                                    : 'bg-blue-950/60 text-blue-300 border border-blue-800'
+                                                        }`}>
+                                                            {course.offered_shifts === 'Morning' ? '🌅 Morning' : course.offered_shifts === 'Evening' ? '🌙 Evening' : '🌅 Morning & 🌙 Evening'}
+                                                        </span>
+                                                        {course.syllabus_document_path && (
+                                                            <span className="text-[10px] text-amber-400 flex items-center space-x-0.5">
+                                                                <FileText className="h-3 w-3" />
+                                                                <span>Syllabus</span>
+                                                            </span>
+                                                        )}
+                                                        {(course.advertisement_url || course.advertisement_image_path) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setViewingAdCourse(course)}
+                                                                className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full cursor-pointer transition hover:bg-emerald-900/60"
+                                                                title="Click to view course advertisement flyer"
+                                                            >
+                                                                <ImageIcon className="h-3 w-3" />
+                                                                <span>Flyer</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td className="py-3.5 px-4">
-                                            <span className="inline-flex items-center space-x-1 font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-xl text-[11px]">
-                                                <Clock className="h-3.5 w-3.5" />
-                                                <span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 block mt-1 font-mono">
-                                                {course.total_academic_days || 60} Academic Days
-                                            </span>
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="font-semibold text-slate-200">{course.trade?.name || '—'}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono">
-                                                {course.trade?.program?.department?.name || 'Vocational'}
+
+                                        {/* Duration & Schedule */}
+                                        <td className="py-3.5 px-3 whitespace-nowrap">
+                                            <div className="flex flex-col gap-1 w-fit">
+                                                <span className="inline-flex items-center space-x-1 font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-xl text-[11px]">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    <span>{course.formatted_duration || `${course.duration_value || 6} Months`}</span>
+                                                </span>
+                                                <div className="text-[10px] text-slate-400 font-mono">
+                                                    {course.total_academic_days || 60} Days • Starts: <span className="text-amber-300/90 font-semibold">{course.classes_start_date ? new Date(course.classes_start_date).toLocaleDateString('en-GB') : 'TBD'}</span>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="flex flex-col gap-1">
+
+                                        {/* Track & Quota */}
+                                        <td className="py-3.5 px-3 whitespace-nowrap">
+                                            <div className="flex flex-col gap-1 w-fit">
                                                 <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                                                     course.requires_entrance_test
                                                         ? 'bg-amber-900/60 text-amber-300 border border-amber-700'
                                                         : 'bg-emerald-900/60 text-emerald-300 border border-emerald-700'
                                                 }`}>
-                                                    {course.requires_entrance_test ? 'Track A: Test Required' : 'Track B: Direct FCFS'}
+                                                    {course.requires_entrance_test ? 'Track A: Test' : 'Track B: Direct'}
                                                 </span>
                                                 <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
                                                     course.is_admission_full
@@ -287,17 +348,23 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="text-slate-300 font-mono text-[11px] flex items-center gap-1">
-                                                <Calendar className="h-3.5 w-3.5 text-amber-400" />
-                                                <span>{course.classes_start_date ? new Date(course.classes_start_date).toLocaleDateString('en-GB') : 'TBD'}</span>
+
+                                        {/* Applicants */}
+                                        <td className="py-3.5 px-2 text-center whitespace-nowrap">
+                                            <span className="font-mono font-black text-white text-sm block">
+                                                {course.total_applicants ?? 0}
+                                            </span>
+                                            <div className="text-[10px] text-slate-400 font-mono">
+                                                {course.verified_applicants ?? 0} verified
                                             </div>
                                         </td>
-                                        <td className="py-3.5 px-3 text-center">
+
+                                        {/* Status */}
+                                        <td className="py-3.5 px-2 text-center whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => router.post(route('clerk.courses.toggle-publish', course.id), {}, { preserveScroll: true })}
-                                                className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition cursor-pointer border shadow-xs ${
+                                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition cursor-pointer border shadow-xs ${
                                                     course.is_published
                                                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
                                                         : 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
@@ -305,46 +372,30 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                                 title={course.is_published ? "Click to set to Draft (hide from website)" : "Click to Publish live on website catalog"}
                                             >
                                                 <Globe className={`h-3 w-3 ${course.is_published ? 'text-emerald-400' : 'text-amber-400'}`} />
-                                                <span>{course.is_published ? 'Live Public' : 'Draft / Unpublished'}</span>
+                                                <span>{course.is_published ? 'Live' : 'Draft'}</span>
                                             </button>
                                         </td>
-                                        <td className="py-3.5 px-4 text-center">
-                                            <span className="font-mono font-black text-white text-sm">
-                                                {course.total_applicants ?? 0}
-                                            </span>
-                                            <div className="text-[10px] text-slate-400">
-                                                {course.verified_applicants ?? 0} verified
+
+                                        {/* Actions */}
+                                        <td className="py-3.5 pr-6 pl-2 text-right whitespace-nowrap">
+                                            <div className="flex items-center justify-end space-x-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEdit(course)}
+                                                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 transition border border-slate-700/60"
+                                                    title="Edit Course Parameters"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(course)}
+                                                    className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-rose-400 transition border border-slate-700/60 hover:border-rose-800/60"
+                                                    title="Archive Course"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
                                             </div>
-                                        </td>
-                                        <td className="py-3.5 px-4 text-right space-x-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => router.post(route('clerk.courses.toggle-publish', course.id), {}, { preserveScroll: true })}
-                                                className={`p-1.5 rounded-lg transition ${
-                                                    course.is_published
-                                                        ? 'bg-emerald-950/60 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-800/60'
-                                                        : 'bg-slate-800 text-slate-400 hover:bg-amber-950/60 hover:text-amber-300'
-                                                }`}
-                                                title={course.is_published ? "Unpublish from live website" : "Publish Live on website catalog"}
-                                            >
-                                                <Globe className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleOpenEdit(course)}
-                                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 transition"
-                                                title="Edit Course Parameters"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(course)}
-                                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-rose-400 transition"
-                                                title="Archive Course"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -570,6 +621,26 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                         />
                                         <span className="text-[10px] text-slate-500 mt-0.5 block">Notified to admitted students upon verification.</span>
                                     </div>
+                                </div>
+
+                                {/* Offered Batch Shifts in Create */}
+                                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                                    <label className="block font-bold text-slate-200 text-xs flex items-center space-x-1.5">
+                                        <Clock className="h-4 w-4 text-amber-400" />
+                                        <span>Offered Batch Shift(s) *</span>
+                                    </label>
+                                    <select
+                                        value={createForm.data.offered_shifts}
+                                        onChange={(e) => createForm.setData('offered_shifts', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-xs"
+                                    >
+                                        <option value="Both">🌅 Morning & 🌙 Evening (Both Shifts Available)</option>
+                                        <option value="Morning">🌅 Morning Shift Only (08:00 AM – 01:30 PM)</option>
+                                        <option value="Evening">🌙 Evening Shift Only (02:00 PM – 07:00 PM)</option>
+                                    </select>
+                                    <p className="text-[11px] text-slate-400">
+                                        Determines which shifts candidates can choose on the application portal. The system automatically provisions active batches for chosen shifts.
+                                    </p>
                                 </div>
                             </div>
 
@@ -923,6 +994,26 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Offered Batch Shifts in Edit */}
+                                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                                    <label className="block font-bold text-slate-200 text-xs flex items-center space-x-1.5">
+                                        <Clock className="h-4 w-4 text-amber-400" />
+                                        <span>Offered Batch Shift(s) *</span>
+                                    </label>
+                                    <select
+                                        value={editForm.data.offered_shifts}
+                                        onChange={(e) => editForm.setData('offered_shifts', e.target.value)}
+                                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-xs"
+                                    >
+                                        <option value="Both">🌅 Morning & 🌙 Evening (Both Shifts Available)</option>
+                                        <option value="Morning">🌅 Morning Shift Only (08:00 AM – 01:30 PM)</option>
+                                        <option value="Evening">🌙 Evening Shift Only (02:00 PM – 07:00 PM)</option>
+                                    </select>
+                                    <p className="text-[11px] text-slate-400">
+                                        Determines which shifts candidates can choose on the application portal. The system automatically provisions active batches for chosen shifts.
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1112,43 +1203,58 @@ export default function Index({ courses = [], trades = [], categories = [] }) {
 
             {/* View Course Advertisement Poster Lightbox Modal */}
             {viewingAdCourse && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="relative max-w-2xl w-full bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-                            <div className="flex items-center space-x-2">
-                                <ImageIcon className="h-5 w-5 text-amber-400" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="relative max-w-4xl w-full bg-slate-950 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
+                            <div className="flex items-center space-x-3">
+                                <div className="p-2 rounded-xl bg-emerald-950 border border-emerald-800/60">
+                                    <ImageIcon className="h-5 w-5 text-emerald-400" />
+                                </div>
                                 <div>
-                                    <h3 className="font-extrabold text-sm text-white">{viewingAdCourse.name}</h3>
-                                    <p className="text-[10px] text-slate-400">Official Course Advertisement Flyer</p>
+                                    <h3 className="font-extrabold text-base text-white">{viewingAdCourse.name}</h3>
+                                    <p className="text-xs text-slate-400">Official Course Advertisement & Intake Flyer</p>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setViewingAdCourse(null)}
-                                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
+                            <div className="flex items-center space-x-2">
+                                <a
+                                    href={viewingAdCourse.advertisement_url || `/storage/${viewingAdCourse.advertisement_image_path}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download
+                                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition flex items-center space-x-1.5 border border-slate-700"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">Download</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewingAdCourse(null)}
+                                    className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950/60">
+                        <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950/95">
                             <img
-                                src={`/storage/${viewingAdCourse.advertisement_image_path}`}
+                                src={viewingAdCourse.advertisement_url || `/storage/${viewingAdCourse.advertisement_image_path}`}
                                 alt={`${viewingAdCourse.name} Flyer`}
-                                className="max-h-[70vh] w-auto max-w-full object-contain rounded-xl shadow-lg border border-slate-800"
+                                className="max-h-[72vh] w-auto max-w-full object-contain rounded-xl shadow-2xl border border-slate-800"
                             />
                         </div>
 
-                        <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs">
-                            <span className="text-[11px] text-slate-400">Shown to students on public course catalog</span>
-                            <a
-                                href={`/storage/${viewingAdCourse.advertisement_image_path}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition"
+                        <div className="p-3.5 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between text-xs text-slate-400 shrink-0">
+                            <span className="text-[11px] text-slate-300">
+                                Displayed publicly on candidate admissions portal & homepage
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setViewingAdCourse(null)}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow"
                             >
-                                Open Full Image
-                            </a>
+                                Close Preview
+                            </button>
                         </div>
                     </div>
                 </div>

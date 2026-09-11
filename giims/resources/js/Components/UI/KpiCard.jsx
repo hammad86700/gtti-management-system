@@ -46,23 +46,23 @@ export default function KpiCard({
     return (
         <div
             onClick={onClick}
-            className={`relative bg-white rounded-xl border border-slate-200/80 p-5 shadow-card hover:shadow-card-hover hover:border-govt-green/30 transition-all duration-200 group ${
+            className={`relative bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-card hover:shadow-card-hover hover:border-govt-green/30 dark:hover:border-emerald-500/30 transition-all duration-200 group ${
                 onClick ? 'cursor-pointer' : ''
             } ${className}`}
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         {title}
                     </p>
-                    <h4 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-1">
+                    <h4 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
                         {value}
                     </h4>
                 </div>
 
                 {Icon && (
                     <div
-                        className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 border transition-transform duration-200 group-hover:scale-105 ${currentVariant.iconBg}`}
+                        className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 border transition-transform duration-200 group-hover:scale-105 ${currentVariant.iconBg} dark:bg-opacity-20 dark:border-opacity-30`}
                     >
                         <Icon className="h-5 w-5 stroke-[2]" />
                     </div>
@@ -70,10 +70,10 @@ export default function KpiCard({
             </div>
 
             {(badgeText || description) && (
-                <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
                     {badgeText && (
                         <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] border ${currentVariant.badgeBg}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] border ${currentVariant.badgeBg} dark:bg-opacity-20 dark:border-opacity-30`}
                         >
                             {trend === 'up' && <ArrowUpRight className="h-3 w-3" />}
                             {trend === 'down' && <ArrowDownRight className="h-3 w-3" />}
@@ -82,7 +82,7 @@ export default function KpiCard({
                     )}
 
                     {description && (
-                        <p className="text-[11px] text-slate-500 truncate max-w-[200px]" title={description}>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={description}>
                             {description}
                         </p>
                     )}

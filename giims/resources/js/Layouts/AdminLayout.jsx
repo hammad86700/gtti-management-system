@@ -31,10 +31,15 @@ import {
     Sparkles,
     CheckCircle2,
     Send,
-    Monitor
+    Monitor,
+    UserCheck,
+    Camera,
+    Layout,
+    Image as ImageIcon
 } from 'lucide-react';
 import Dropdown from '@/Components/Dropdown';
 import ErrorBoundary from '@/Components/ErrorBoundary';
+import ThemeToggle from '@/Components/UI/ThemeToggle';
 
 export default function AdminLayout({ header, children }) {
     const { auth, site_settings: siteSettings = {} } = usePage().props;
@@ -86,6 +91,20 @@ export default function AdminLayout({ header, children }) {
                     badge: 'Results',
                 },
                 {
+                    name: 'College Timetables',
+                    href: route('admin.timetables.index'),
+                    active: route().current('admin.timetables.*'),
+                    icon: Clock,
+                    badge: 'Schedules',
+                },
+                {
+                    name: 'Certificate Approvals',
+                    href: route('admin.certificates.index'),
+                    active: route().current('admin.certificates.*'),
+                    icon: Award,
+                    badge: 'Parchments',
+                },
+                {
                     name: 'Trades & Curriculum',
                     href: route('admin.organization.index'),
                     active: route().current('admin.organization.*'),
@@ -128,6 +147,13 @@ export default function AdminLayout({ header, children }) {
                     badge: 'Live',
                 },
                 {
+                    name: 'Urgent Closures & Holidays',
+                    href: route('admin.holidays.index'),
+                    active: route().current('admin.holidays.*'),
+                    icon: ShieldAlert,
+                    badge: 'Offs',
+                },
+                {
                     name: 'Workshop Store',
                     href: route('admin.inventory.index'),
                     active: route().current('admin.inventory.*'),
@@ -153,6 +179,34 @@ export default function AdminLayout({ header, children }) {
                     icon: Briefcase,
                     badge: 'TEVTA',
                 },
+                {
+                    name: 'Hero Showcase Media',
+                    href: route('admin.campus-media.index'),
+                    active: route().current('admin.campus-media.*'),
+                    icon: Camera,
+                    badge: 'Hero',
+                },
+                {
+                    name: 'Institute Image Gallery',
+                    href: route('admin.gallery.index'),
+                    active: route().current('admin.gallery.*'),
+                    icon: ImageIcon,
+                    badge: 'Gallery',
+                },
+                {
+                    name: 'Core Team Directory',
+                    href: route('admin.core-team.index'),
+                    active: route().current('admin.core-team.*'),
+                    icon: Users,
+                    badge: 'Team',
+                },
+                {
+                    name: 'Public Landing CMS',
+                    href: route('admin.site-settings.index'),
+                    active: route().current('admin.site-settings.*') || route().current('clerk.site-settings.*'),
+                    icon: Layout,
+                    badge: 'CMS',
+                },
             ],
         },
         {
@@ -163,6 +217,13 @@ export default function AdminLayout({ header, children }) {
                     href: route('allocations.index'),
                     active: route().current('allocations.*') || route().current('admin.allocations.*'),
                     icon: BookOpen,
+                },
+                {
+                    name: 'Faculty Attendance Desk',
+                    href: route('admin.faculty-attendance.index'),
+                    active: route().current('admin.faculty-attendance.*'),
+                    icon: UserCheck,
+                    badge: 'Daily',
                 },
                 {
                     name: 'Staff Management',
@@ -241,7 +302,7 @@ export default function AdminLayout({ header, children }) {
     ];
 
     return (
-        <div className="min-h-screen bg-[#F4F6F8] text-slate-900 flex flex-col antialiased font-sans">
+        <div className="min-h-screen bg-[#F4F6F8] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col antialiased font-sans transition-colors duration-200">
             {/* Mobile Sidebar Overlay */}
             {sidebarOpen && (
                 <div
@@ -368,23 +429,23 @@ export default function AdminLayout({ header, children }) {
             {/* Main Wrapper */}
             <div className="lg:pl-72 flex flex-col flex-1 min-h-screen">
                 {/* Sticky Global Top Navbar */}
-                <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
+                <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
                     {/* Left: Mobile Toggle & Institutional Breadcrumb */}
                     <div className="flex items-center space-x-3 shrink-0">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-[#0B3B24] hover:bg-slate-100 focus:outline-none"
+                            className="lg:hidden p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-[#0B3B24] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none"
                             aria-label="Open sidebar"
                         >
                             <Menu className="h-5 w-5" />
                         </button>
                         <div className="flex items-center space-x-2.5 text-xs font-medium">
-                            <div className="h-7 w-7 rounded-lg bg-white p-0.5 border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
+                            <div className="h-7 w-7 rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-center shrink-0">
                                 <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                             </div>
-                            <span className="font-bold text-[#0B3B24] tracking-tight">GIIMS Portal</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-600 font-semibold hidden sm:inline">Session 2026–2027</span>
+                            <span className="font-bold text-[#0B3B24] dark:text-emerald-400 tracking-tight">GIIMS Portal</span>
+                            <span className="text-slate-300 dark:text-slate-700">•</span>
+                            <span className="text-slate-600 dark:text-slate-300 font-semibold hidden sm:inline">Session 2026–2027</span>
                         </div>
                     </div>
 
@@ -396,14 +457,14 @@ export default function AdminLayout({ header, children }) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search students, staff, batches, records..."
-                            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-full text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-slate-400 shadow-xs transition"
+                            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-xs transition"
                         />
                     </div>
 
-                    {/* Right: Period Toggle Pills, Notifications & User Profile Pill */}
+                    {/* Right: Period Toggle Pills, Theme Toggle, Notifications & User Profile Pill */}
                     <div className="flex items-center space-x-2.5 shrink-0">
                         {/* Period Toggle Segmented Control */}
-                        <div className="hidden sm:inline-flex p-0.5 bg-slate-100 rounded-full border border-slate-200 text-xs font-semibold">
+                        <div className="hidden sm:inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-xs font-semibold">
                             {['Week', 'Month', 'Session'].map((p) => (
                                 <button
                                     key={p}
@@ -412,7 +473,7 @@ export default function AdminLayout({ header, children }) {
                                     className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
                                         period === p
                                             ? 'bg-[#0B3B24] text-white shadow-xs font-semibold'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 >
                                     {p}
@@ -420,14 +481,17 @@ export default function AdminLayout({ header, children }) {
                             ))}
                         </div>
 
+                        {/* Dark/Light Mode Theme Toggle */}
+                        <ThemeToggle variant="header" />
+
                         {/* Notification Bell with Badge */}
                         <Link
                             href={route('admin.announcements.index')}
-                            className="relative p-2 rounded-full text-slate-500 hover:text-[#0B3B24] hover:bg-slate-100 transition"
+                            className="relative p-2 rounded-full text-slate-500 dark:text-slate-400 hover:text-[#0B3B24] dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             title="Institutional Notices"
                         >
                             <Bell className="h-4 w-4" />
-                            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                         </Link>
 
                         {/* User Profile Pill */}
@@ -436,63 +500,63 @@ export default function AdminLayout({ header, children }) {
                                 <Dropdown.Trigger>
                                     <button
                                         type="button"
-                                        className="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition shadow-xs focus:outline-none"
+                                        className="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition shadow-xs focus:outline-none"
                                     >
                                         <div className="h-7 w-7 rounded-full bg-[#0B3B24] text-white font-bold flex items-center justify-center text-xs shadow-xs">
                                             {user.name ? user.name.charAt(0).toUpperCase() : 'A'}
                                         </div>
                                         <div className="hidden lg:block text-left pr-1">
-                                            <p className="text-xs font-bold text-slate-800 leading-none truncate max-w-[110px]">
+                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-none truncate max-w-[110px]">
                                                 {user.name}
                                             </p>
                                             <span className="text-[10px] text-slate-400 font-medium">Principal</span>
                                         </div>
-                                        <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
                                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                             <span className="hidden sm:inline">Active</span>
                                         </span>
                                         <ChevronDown className="h-3 w-3 text-slate-400" />
                                     </button>
                                 </Dropdown.Trigger>
-                                <Dropdown.Content contentClasses="py-1 bg-white border border-slate-200 text-slate-700 shadow-xl rounded-2xl min-w-[200px]">
-                                    <div className="px-4 py-2.5 border-b border-slate-100 text-xs">
-                                        <p className="font-bold text-slate-900 truncate">{user.name}</p>
-                                        <p className="text-slate-500 truncate text-[11px]">{user.email}</p>
-                                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <Dropdown.Content contentClasses="py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 shadow-xl rounded-2xl min-w-[200px]">
+                                    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 text-xs">
+                                        <p className="font-bold text-slate-900 dark:text-white truncate">{user.name}</p>
+                                        <p className="text-slate-500 dark:text-slate-400 truncate text-[11px]">{user.email}</p>
+                                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60">
                                             Principal Administrator
                                         </span>
                                     </div>
                                     <Dropdown.Link
                                         href={route('clerk.applications.index')}
-                                        className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24] flex items-center justify-between"
+                                        className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400 flex items-center justify-between"
                                     >
                                         <span>Clerk Scrutiny Desk</span>
-                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Ops</span>
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">Ops</span>
                                     </Dropdown.Link>
                                     <Dropdown.Link
                                         href={route('clerk.fees.reconciliation')}
-                                        className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24] flex items-center justify-between"
+                                        className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400 flex items-center justify-between"
                                     >
                                         <span>Bank Fee Reconciliation</span>
-                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Auto</span>
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">Auto</span>
                                     </Dropdown.Link>
                                     <Dropdown.Link
                                         href={route('teacher.exam-system.dashboard')}
-                                        className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24] flex items-center justify-between"
+                                        className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400 flex items-center justify-between"
                                     >
                                         <span>CBT Exam System</span>
-                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">CBT</span>
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">CBT</span>
                                     </Dropdown.Link>
-                                    <div className="border-t border-slate-100 my-1" />
+                                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
                                     <Dropdown.Link
                                         href={route('profile.edit')}
-                                        className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24]"
+                                        className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400"
                                     >
                                         Profile Settings
                                     </Dropdown.Link>
                                     <Dropdown.Link
                                         href={route('admin.settings.index')}
-                                        className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24]"
+                                        className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400"
                                     >
                                         System Settings
                                     </Dropdown.Link>
@@ -500,7 +564,7 @@ export default function AdminLayout({ header, children }) {
                                         href={route('logout')}
                                         method="post"
                                         as="button"
-                                        className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold"
+                                        className="text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 font-semibold"
                                     >
                                         Log Out
                                     </Dropdown.Link>
@@ -512,7 +576,7 @@ export default function AdminLayout({ header, children }) {
 
                 {/* Page Sub-Header / Action Ribbon (Rendered when page provides a header prop) */}
                 {header && (
-                    <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-4 shadow-2xs">
+                    <div className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 py-4 shadow-2xs">
                         {header}
                     </div>
                 )}

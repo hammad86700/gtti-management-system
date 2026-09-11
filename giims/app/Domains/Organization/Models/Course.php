@@ -109,7 +109,7 @@ class Course extends Model
      */
     public function getAdvertisementUrlAttribute(): ?string
     {
-        return $this->advertisement_image_path ? asset('storage/' . $this->advertisement_image_path) : null;
+        return $this->advertisement_image_path ? '/storage/' . ltrim($this->advertisement_image_path, '/') : null;
     }
 
     /**
@@ -126,6 +126,52 @@ class Course extends Model
     public function batches(): HasMany
     {
         return $this->hasMany(Batch::class);
+    }
+
+    /**
+     * Check if this course offers a specific shift (Morning or Evening).
+     */
+    public function offersShift(string $shift): bool
+    {
+        $shift = ucfirst(strtolower($shift));
+        $offered = $this->offered_shifts ?: 'Both';
+
+        if ($offered === 'Both') {
+            return in_array($shift, ['Morning', 'Evening']);
+        }
+
+        return $offered === $shift;
+    }
+
+    /**
+     * Ensure active batches exist for the shifts offered by this course.
+     */
+    public function ensureShiftBatchesExist(): void
+    {
+        $offered = $this->offered_shifts ?: 'Both';
+        $shiftsToEnsure = [];
+
+        if ($offered === 'Both' || $offered === 'Morning') {
+            $shiftsToEnsure[] = 'Morning';
+        }
+        if ($offered === 'Both' || $offered === 'Evening') {
+            $shiftsToEnsure[] = 'Evening';
+        }
+
+        foreach ($shiftsToEnsure as $shift) {
+            Batch::firstOrCreate(
+                [
+                    'course_id' => $this->id,
+                    'shift' => $shift,
+                ],
+                [
+                    'name' => "Fall 2026 - {$shift} Batch",
+                    'session_year' => '2026-2027',
+                    'start_date' => '2026-09-01',
+                    'end_date' => '2027-08-31',
+                ]
+            );
+        }
     }
 
     /**

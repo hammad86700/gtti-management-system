@@ -45,6 +45,16 @@ class StaffManagementTest extends TestCase
             'email' => 'testteacher@gtti.edu.pk',
             'password' => 'secret12345',
             'role_id' => $teacherRole->id,
+            'father_name' => 'Muhammad Aslam',
+            'cnic' => '31202-1234567-1',
+            'phone' => '03001234567',
+            'dob' => '1990-05-15',
+            'gender' => 'male',
+            'designation' => 'Senior Instructor',
+            'employment_type' => 'regular',
+            'joining_date' => '2022-01-10',
+            'highest_qualification' => 'BS Computer Science',
+            'residential_address' => 'Model Town, Rahim Yar Khan',
         ];
 
         $response = $this->actingAs($admin)->post(route('admin.staff.store'), $staffData);
@@ -57,6 +67,12 @@ class StaffManagementTest extends TestCase
         $this->assertEquals('Engr. Test Teacher', $createdUser->name);
         $this->assertTrue(Hash::check('secret12345', $createdUser->password));
         $this->assertTrue($createdUser->roles->contains($teacherRole->id));
+        $this->assertDatabaseHas('staff_profiles', [
+            'user_id' => $createdUser->id,
+            'cnic' => '31202-1234567-1',
+            'designation' => 'Senior Instructor',
+            'employment_type' => 'regular',
+        ]);
     }
 
     public function test_staff_creation_validates_required_fields_and_uniqueness(): void
@@ -67,7 +83,7 @@ class StaffManagementTest extends TestCase
 
         // Attempt creation with empty payload
         $response = $this->actingAs($admin)->post(route('admin.staff.store'), []);
-        $response->assertSessionHasErrors(['name', 'email', 'password', 'role_id']);
+        $response->assertSessionHasErrors(['name', 'email', 'password', 'role_id', 'father_name', 'cnic', 'phone', 'dob', 'gender', 'designation', 'employment_type', 'joining_date', 'highest_qualification', 'residential_address']);
 
         // Attempt creation with short password
         $response = $this->actingAs($admin)->post(route('admin.staff.store'), [

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     GraduationCap,
     UserCheck,
@@ -34,13 +34,16 @@ export default function Index({
     applications = [],
     batches = [],
     courses = [],
-    enrollments = []
+    enrollments = [],
+    filters = {},
+    stats = {},
 }) {
     const [selectedBatches, setSelectedBatches] = useState({});
     const [enrollingId, setEnrollingId] = useState(null);
     const [activeTab, setActiveTab] = useState('enrolled'); // Default to enrolled roster
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedShift, setSelectedShift] = useState(filters.shift || 'All');
 
     // Modal States
     const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -148,6 +151,13 @@ export default function Index({
     };
 
     const filteredApplications = applications.filter((app) => {
+        if (selectedShift !== 'All') {
+            const appShift = (app.shift || 'Morning').toLowerCase();
+            if (appShift !== selectedShift.toLowerCase()) {
+                return false;
+            }
+        }
+
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
         return (
@@ -163,6 +173,13 @@ export default function Index({
         const profile = enr.student_profile;
         const course = enr.course;
         const batch = enr.batch;
+
+        if (selectedShift !== 'All') {
+            const shift = (batch?.shift || 'Morning').toLowerCase();
+            if (shift !== selectedShift.toLowerCase()) {
+                return false;
+            }
+        }
 
         if (selectedCategory !== 'All') {
             const cat = selectedCategory.toLowerCase();
@@ -220,8 +237,45 @@ export default function Index({
             <Head title="Student Enrollments & Management - GIIMS" />
 
             <div className="space-y-6">
-                {/* Stats Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Stats Bar (Separated Morning & Evening Metrics) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">
+                        <div className="h-12 w-12 rounded-xl bg-govt-green-50 text-govt-green flex items-center justify-center border border-govt-green-200">
+                            <GraduationCap className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 font-medium">Total Enrolled Trainees</p>
+                            <h3 className="text-2xl font-bold text-gray-900">{stats.total_enrolled ?? enrollments.length}</h3>
+                            <p className="text-[11px] text-gray-400">Issued Official Roll Numbers</p>
+                        </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-white border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 shadow-sm flex items-center space-x-4">
+                        <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center border border-emerald-300 font-bold text-xl">
+                            🌅
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 font-medium">Morning Shift Trainees</p>
+                            <h3 className="text-2xl font-bold text-emerald-800">
+                                {stats.morning_count ?? enrollments.filter(e => (e.batch?.shift || 'Morning').toLowerCase() === 'morning').length}
+                            </h3>
+                            <p className="text-[11px] text-emerald-600 font-semibold">08:00 AM – 01:30 PM</p>
+                        </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-white border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-sm flex items-center space-x-4">
+                        <div className="h-12 w-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center border border-indigo-300 font-bold text-xl">
+                            🌙
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 font-medium">Evening Shift Trainees</p>
+                            <h3 className="text-2xl font-bold text-indigo-800">
+                                {stats.evening_count ?? enrollments.filter(e => (e.batch?.shift || '').toLowerCase() === 'evening').length}
+                            </h3>
+                            <p className="text-[11px] text-indigo-600 font-semibold">02:00 PM – 07:00 PM</p>
+                        </div>
+                    </div>
+
                     <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">
                         <div className="h-12 w-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200">
                             <Award className="h-6 w-6" />
@@ -232,27 +286,74 @@ export default function Index({
                             <p className="text-[11px] text-gray-400">Pending Batch Enrollment</p>
                         </div>
                     </div>
+                </div>
 
-                    <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">
-                        <div className="h-12 w-12 rounded-xl bg-govt-green-50 text-govt-green flex items-center justify-center border border-govt-green-200">
-                            <GraduationCap className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500 font-medium">Active Enrolled Trainees</p>
-                            <h3 className="text-2xl font-bold text-gray-900">{enrollments.length}</h3>
-                            <p className="text-[11px] text-gray-400">Issued Official Roll Numbers</p>
+                {/* Shift Filter Segmented Bar (Morning vs Evening Data Separation) */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center space-x-2.5">
+                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider pl-1">
+                            Shift View:
+                        </span>
+                        <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedShift('All')}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                                    selectedShift === 'All'
+                                        ? 'bg-[#0B3B24] text-white shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <span>All Shifts</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                                    selectedShift === 'All' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                                }`}>
+                                    {activeTab === 'enrolled' ? enrollments.length : applications.length}
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setSelectedShift('Morning')}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                                    selectedShift === 'Morning'
+                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                        : 'text-slate-600 hover:text-emerald-700'
+                                }`}
+                            >
+                                <span>🌅 Morning Shift</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                                    selectedShift === 'Morning' ? 'bg-emerald-700 text-white' : 'bg-emerald-50 text-emerald-800'
+                                }`}>
+                                    {activeTab === 'enrolled'
+                                        ? (stats.morning_count ?? enrollments.filter(e => (e.batch?.shift || 'Morning').toLowerCase() === 'morning').length)
+                                        : applications.filter(a => (a.shift || 'Morning').toLowerCase() === 'morning').length}
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setSelectedShift('Evening')}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                                    selectedShift === 'Evening'
+                                        ? 'bg-indigo-600 text-white shadow-xs'
+                                        : 'text-slate-600 hover:text-indigo-700'
+                                }`}
+                            >
+                                <span>🌙 Evening Shift</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                                    selectedShift === 'Evening' ? 'bg-indigo-700 text-white' : 'bg-indigo-50 text-indigo-800'
+                                }`}>
+                                    {activeTab === 'enrolled'
+                                        ? (stats.evening_count ?? enrollments.filter(e => (e.batch?.shift || '').toLowerCase() === 'evening').length)
+                                        : applications.filter(a => (a.shift || '').toLowerCase() === 'evening').length}
+                                </span>
+                            </button>
                         </div>
                     </div>
 
-                    <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center space-x-4">
-                        <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200">
-                            <Layers className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500 font-medium">Academic Batches</p>
-                            <h3 className="text-2xl font-bold text-blue-600">{batches.length}</h3>
-                            <p className="text-[11px] text-gray-400">Active Cohorts</p>
-                        </div>
+                    <div className="text-[11px] font-semibold text-slate-500 pr-1">
+                        Viewing <span className="font-bold text-slate-900">{selectedShift}</span> roster: <span className="font-mono font-bold text-emerald-800">{activeTab === 'enrolled' ? filteredEnrollments.length : filteredApplications.length}</span> students
                     </div>
                 </div>
 
@@ -414,10 +515,19 @@ export default function Index({
                                                     {user?.cnic || '31202-*******-*'}
                                                 </td>
 
-                                                {/* Trade / Class */}
+                                                {/* Trade / Class & Shift Badge */}
                                                 <td className="py-3 px-3">
-                                                    <p className="font-semibold text-slate-800">{course?.name}</p>
-                                                    <p className="text-[11px] text-slate-400 capitalize">{batch?.name} ({batch?.shift || 'Morning'})</p>
+                                                    <div className="flex items-center space-x-2">
+                                                        <p className="font-semibold text-slate-800">{course?.name}</p>
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                                                            (batch?.shift || 'Morning').toLowerCase() === 'evening'
+                                                                ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                                                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                                        }`}>
+                                                            {(batch?.shift || 'Morning').toLowerCase() === 'evening' ? '🌙 Evening' : '🌅 Morning'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-400 capitalize">{batch?.name || 'Fall 2026 Batch'}</p>
                                                 </td>
 
                                                 {/* Gender */}
@@ -546,6 +656,7 @@ export default function Index({
                                         <th className="pb-3 font-semibold">App #</th>
                                         <th className="pb-3 font-semibold">Candidate</th>
                                         <th className="pb-3 font-semibold">Applied Course / Trade</th>
+                                        <th className="pb-3 font-semibold text-center">Requested Shift</th>
                                         <th className="pb-3 font-semibold">Target Batch</th>
                                         <th className="pb-3 font-semibold text-right">Action</th>
                                     </tr>
@@ -559,8 +670,11 @@ export default function Index({
                                         const courseBatches = batches.filter(
                                             (b) => String(b.course_id) === String(app.course_id)
                                         );
-                                        const options = courseBatches.length > 0 ? courseBatches : batches;
-                                        const selectedBatchVal = selectedBatches[app.id] || options[0]?.id || '';
+                                        const matchingShiftBatches = courseBatches.filter(
+                                            (b) => b.shift?.toLowerCase() === (app.shift || 'Morning').toLowerCase()
+                                        );
+                                        const options = matchingShiftBatches.length > 0 ? matchingShiftBatches : (courseBatches.length > 0 ? courseBatches : batches);
+                                        const selectedBatchVal = selectedBatches[app.id] || (app.batch_id && options.some(o => o.id === app.batch_id) ? app.batch_id : options[0]?.id) || '';
 
                                         return (
                                             <tr key={app.id} className="hover:bg-gray-50/80 transition">
@@ -576,6 +690,15 @@ export default function Index({
                                                 <td className="py-3.5">
                                                     <p className="font-semibold text-gray-800">{course?.name}</p>
                                                     <p className="text-[11px] text-gray-400">{course?.trade?.name}</p>
+                                                </td>
+                                                <td className="py-3.5 text-center">
+                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                                        (app.shift || 'Morning').toLowerCase() === 'evening'
+                                                            ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                                    }`}>
+                                                        {(app.shift || 'Morning').toLowerCase() === 'evening' ? '🌙 Evening' : '🌅 Morning'}
+                                                    </span>
                                                 </td>
                                                 <td className="py-3.5 min-w-[220px]">
                                                     <select

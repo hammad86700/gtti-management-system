@@ -171,55 +171,143 @@ class DashboardController extends Controller
         $today = today();
         $todaySession = null;
         $todayAttendance = null;
+        $monthlyAttendance = null;
 
         if ($activeEnrollment && $activeEnrollment->batch_id && $profile) {
             $batchId = $activeEnrollment->batch_id;
 
-            // Today's attendance session for this batch & student today status
+            // Today's attendance session for this batch
             $currentSession = \App\Domains\Attendance\Models\AttendanceSession::where('batch_id', $batchId)
                 ->whereDate('session_date', $today)
                 ->latest()
                 ->first();
 
-            if ($currentSession) {
-                $todaySession = [
-                    'id' => $currentSession->id,
-                    'location_name' => $currentSession->location_name ?? 'Computer Lab 1 & 2 (IT Wing)',
-                    'latitude' => (float) ($currentSession->latitude ?? 28.4212),
-                    'longitude' => (float) ($currentSession->longitude ?? 70.3023),
-                    'radius_meters' => (int) ($currentSession->radius_meters ?? 150),
-                    'is_geofence_active' => (bool) $currentSession->is_geofence_active,
-                    'has_daily_pin' => !empty($currentSession->daily_pin),
-                    'status' => $currentSession->status,
-                ];
+            // Check if student has an approved leave for today
+            $approvedLeaveToday = \App\Domains\Student\Models\LeaveRequest::where('student_profile_id', $profile->id)
+                ->where('status', 'approved')
+                ->whereDate('start_date', '<=', $today)
+                ->whereDate('end_date', '>=', $today)
+                ->first();
 
-                $attRecord = \App\Domains\Attendance\Models\ClassAttendance::where('attendance_session_id', $currentSession->id)
+            $attRecord = $currentSession
+                ? \App\Domains\Attendance\Models\ClassAttendance::where('attendance_session_id', $currentSession->id)
                     ->where('student_profile_id', $profile->id)
-                    ->first();
+                    ->first()
+                : null;
 
-                if ($attRecord) {
-                    $todayAttendance = [
-                        'id' => $attRecord->id,
-                        'status' => $attRecord->status,
-                        'method' => $attRecord->method,
-                        'distance_meters' => $attRecord->distance_meters,
-                        'marked_at' => $attRecord->marked_at?->format('h:i A') ?? $attRecord->created_at?->format('h:i A'),
-                        'is_marked' => in_array($attRecord->status, ['present', 'late']),
-                        'is_confirmed_by_teacher' => (bool) $attRecord->is_confirmed_by_teacher,
-                    ];
+            $status = 'unmarked';
+            if ($attRecord) {
+                $status = $attRecord->status; // 'present', 'absent', 'leave', 'late'
+            } elseif ($approvedLeaveToday) {
+                $status = 'leave';
+            }
+
+            $todayAttendance = [
+                'id' => $attRecord?->id,
+                'status' => $status,
+                'is_marked' => $status !== 'unmarked',
+                'marked_at' => $attRecord?->marked_at?->format('h:i A') ?? $attRecord?->created_at?->format('h:i A'),
+                'date' => $today->format('d M Y'),
+                'leave_reason' => $approvedLeaveToday?->reason ?? null,
+            ];
+
+            // Student's Monthly Day-by-Day Attendance Record
+            $currentMonth = (int) request('month', now()->month);
+            $currentYear = (int) request('year', now()->year);
+            $monthCarbon = \Carbon\Carbon::createFromDate($currentYear, $currentMonth, 1);
+            $daysInMonth = $monthCarbon->daysInMonth;
+
+            $monthSessions = \App\Domains\Attendance\Models\AttendanceSession::where('batch_id', $batchId)
+                ->whereYear('session_date', $currentYear)
+                ->whereMonth('session_date', $currentMonth)
+                ->with(['classAttendances' => function ($q) use ($profile) {
+                    $q->where('student_profile_id', $profile->id);
+                }])
+                ->get()
+                ->keyBy(function ($item) {
+                    return (int) $item->session_date->format('j');
+                });
+
+            $startOfMonth = $monthCarbon->copy()->startOfMonth();
+            $endOfMonth = $monthCarbon->copy()->endOfMonth();
+
+            $monthLeaves = \App\Domains\Student\Models\LeaveRequest::where('student_profile_id', $profile->id)
+                ->where('status', 'approved')
+                ->where(function ($q) use ($startOfMonth, $endOfMonth) {
+                    $q->whereBetween('start_date', [$startOfMonth, $endOfMonth])
+                      ->orWhereBetween('end_date', [$startOfMonth, $endOfMonth])
+                      ->orWhere(function ($sub) use ($startOfMonth, $endOfMonth) {
+                          $sub->where('start_date', '<=', $startOfMonth)
+                              ->where('end_date', '>=', $endOfMonth);
+                      });
+                })
+                ->get();
+
+            $monthlyDays = [];
+            $mPresentCount = 0;
+            $mAbsentCount = 0;
+            $mLeaveCount = 0;
+            $mLateCount = 0;
+            $mTotalMarked = 0;
+
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $dayDate = \Carbon\Carbon::createFromDate($currentYear, $currentMonth, $d);
+                $sess = $monthSessions->get($d);
+                $dayStatus = null;
+
+                if ($sess) {
+                    $rec = $sess->classAttendances->first();
+                    if ($rec) {
+                        $dayStatus = $rec->status;
+                    }
                 }
-            } else {
-                // Default GTTI Campus / Lab geofence ready for student check-in
-                $todaySession = [
-                    'id' => null,
-                    'location_name' => 'Computer Lab 1 & 2 (IT Wing)',
-                    'latitude' => 28.4212,
-                    'longitude' => 70.3023,
-                    'radius_meters' => 150,
-                    'is_geofence_active' => true,
-                    'status' => 'active',
+
+                if (!$dayStatus) {
+                    $onLeave = $monthLeaves->first(function ($l) use ($dayDate) {
+                        return $dayDate->between($l->start_date, $l->end_date);
+                    });
+                    if ($onLeave && $sess) {
+                        $dayStatus = 'leave';
+                    }
+                }
+
+                if ($dayStatus === 'present') {
+                    $mPresentCount++;
+                    $mTotalMarked++;
+                } elseif ($dayStatus === 'absent') {
+                    $mAbsentCount++;
+                    $mTotalMarked++;
+                } elseif ($dayStatus === 'leave') {
+                    $mLeaveCount++;
+                    $mTotalMarked++;
+                } elseif ($dayStatus === 'late') {
+                    $mLateCount++;
+                    $mTotalMarked++;
+                }
+
+                $monthlyDays[] = [
+                    'day' => $d,
+                    'date' => $dayDate->toDateString(),
+                    'formatted_date' => $dayDate->format('d M'),
+                    'day_of_week' => $dayDate->format('D'),
+                    'is_weekend' => $dayDate->isWeekend(),
+                    'has_session' => !is_null($sess),
+                    'status' => $dayStatus,
                 ];
             }
+
+            $monthlyAttendance = [
+                'month' => $currentMonth,
+                'year' => $currentYear,
+                'month_name' => $monthCarbon->format('F'),
+                'days' => $monthlyDays,
+                'present_count' => $mPresentCount,
+                'absent_count' => $mAbsentCount,
+                'leave_count' => $mLeaveCount,
+                'late_count' => $mLateCount,
+                'total_sessions' => $mTotalMarked,
+                'percentage' => $mTotalMarked > 0 ? round((($mPresentCount + ($mLateCount * 0.5)) / $mTotalMarked) * 100, 1) : 0,
+            ];
 
             // 1. Online CBT Tests for the student's batch
             $onlineTests = OnlineTest::where('batch_id', $batchId)
@@ -488,6 +576,7 @@ class DashboardController extends Controller
             'assignedTeachers' => $assignedTeachers,
             'todaySession' => $todaySession,
             'todayAttendance' => $todayAttendance,
+            'monthlyAttendance' => $monthlyAttendance,
         ]);
     }
 }

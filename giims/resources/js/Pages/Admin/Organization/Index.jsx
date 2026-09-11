@@ -582,6 +582,7 @@ export default function Index({
                                                                                     name: '',
                                                                                     entry_level: 'Matric',
                                                                                     is_active: true,
+                                                                                    offered_shifts: 'Both',
                                                                                     advertisement_image: null,
                                                                                     remove_advertisement: false,
                                                                                     advertisement_preview: null,
@@ -638,8 +639,18 @@ export default function Index({
                                                                         className="p-3.5 rounded-xl bg-white border border-gray-200 shadow-sm space-y-2.5"
                                                                     >
                                                                         <div className="flex items-start justify-between gap-2">
-                                                                            <div className="flex items-center space-x-2">
-                                                                                <Award className="h-4 w-4 text-govt-green shrink-0" />
+                                                                            <div className="flex items-start space-x-2.5">
+                                                                                {(course.advertisement_url || course.advertisement_image_path) ? (
+                                                                                    <img
+                                                                                        src={course.advertisement_url || `/storage/${course.advertisement_image_path}`}
+                                                                                        alt="Ad Flyer"
+                                                                                        onClick={() => setActiveFlyerPreview(course)}
+                                                                                        className="w-11 h-11 rounded-lg object-cover border border-slate-200 shadow-xs shrink-0 cursor-pointer hover:ring-2 hover:ring-emerald-500 transition"
+                                                                                        title="Click to view course advertisement flyer"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <Award className="h-4 w-4 text-govt-green shrink-0 mt-0.5" />
+                                                                                )}
                                                                                 <div>
                                                                                     <h4 className="font-bold text-gray-900 text-xs">
                                                                                         {course.name}
@@ -663,6 +674,15 @@ export default function Index({
                                                                                                 {course.terminated_enrollments_count} Expelled
                                                                                             </span>
                                                                                         )}
+                                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                                            course.offered_shifts === 'Morning'
+                                                                                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                                                                : course.offered_shifts === 'Evening'
+                                                                                                    ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                                                                                                    : 'bg-blue-50 text-blue-800 border border-blue-200'
+                                                                                        }`}>
+                                                                                            {course.offered_shifts === 'Morning' ? '🌅 Morning' : course.offered_shifts === 'Evening' ? '🌙 Evening' : '🌅 Morning & 🌙 Evening'}
+                                                                                        </span>
                                                                                         {(course.advertisement_url || course.advertisement_image_path) && (
                                                                                             <button
                                                                                                 type="button"
@@ -700,6 +720,7 @@ export default function Index({
                                                                                                 name: course.name,
                                                                                                 entry_level: course.entry_level,
                                                                                                 is_active: course.is_active,
+                                                                                                offered_shifts: course.offered_shifts || 'Both',
                                                                                                 advertisement_image: null,
                                                                                                 remove_advertisement: false,
                                                                                                 advertisement_preview: course.advertisement_url || (course.advertisement_image_path ? `/storage/${course.advertisement_image_path}` : null),
@@ -930,6 +951,28 @@ export default function Index({
                                     <option value="DAE / Diploma">DAE / Diploma</option>
                                     <option value="Open Entry / Literacy">Open Entry / Literacy</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-700 font-bold mb-1">Offered Batch Shift(s) *</label>
+                                <select
+                                    required
+                                    value={courseModal.data.offered_shifts || 'Both'}
+                                    onChange={(e) =>
+                                        setCourseModal({
+                                            ...courseModal,
+                                            data: { ...courseModal.data, offered_shifts: e.target.value },
+                                        })
+                                    }
+                                    className="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 font-bold focus:ring-2 focus:ring-govt-green"
+                                >
+                                    <option value="Both">🌅 Morning & 🌙 Evening (Both Shifts Available)</option>
+                                    <option value="Morning">🌅 Morning Shift Only (08:00 AM – 01:30 PM)</option>
+                                    <option value="Evening">🌙 Evening Shift Only (02:00 PM – 07:00 PM)</option>
+                                </select>
+                                <p className="text-[11px] text-gray-500 mt-1">
+                                    Specifies whether candidates can apply for Morning, Evening, or choose either.
+                                </p>
                             </div>
 
                             <div className="flex items-center space-x-2 pt-2">

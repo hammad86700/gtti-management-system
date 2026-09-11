@@ -163,10 +163,63 @@ class Application extends Model
     }
 
     /**
-     * Get the entrance test attempt for this application.
+     * Get the batch assigned or chosen for this application.
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Organization\Models\Batch::class);
+    }
+
+    /**
+     * Get the entrance test attempt for the application.
      */
     public function entranceTestAttempt(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(EntranceTestAttempt::class);
     }
+
+    /**
+     * Scope a query to only include applications for a specific shift.
+     */
+    public function scopeShift($query, ?string $shift)
+    {
+        if (!$shift || strtolower($shift) === 'all') {
+            return $query;
+        }
+
+        return $query->where('shift', ucfirst(strtolower($shift)));
+    }
+
+    /**
+     * Scope a query to applications pending document scrutiny.
+     */
+    public function scopePendingScrutiny($query)
+    {
+        return $query->whereIn('status', ['pending', 'submitted']);
+    }
+
+    /**
+     * Scope a query to applications awaiting fee verification.
+     */
+    public function scopePendingFeeVerification($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('fee_status', 'pending_verification')
+              ->orWhere('status', 'receipt_submitted')
+              ->orWhereNotNull('challan_receipt_path');
+        })->whereNotIn('status', ['admitted', 'confirmed'])
+          ->where(function ($q) {
+              $q->where('fee_status', '!=', 'paid')
+                ->orWhereNull('fee_status');
+          });
+    }
+
+    /**
+     * Scope a query to confirmed/admitted applications.
+     */
+    public function scopeAdmitted($query)
+    {
+        return $query->whereIn('status', ['admitted', 'confirmed']);
+    }
 }
+

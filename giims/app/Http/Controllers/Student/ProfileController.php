@@ -28,6 +28,7 @@ class ProfileController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'cnic' => 'required|string|max:25',
             'father_name' => 'required|string|max:255',
             'date_of_birth' => 'required|date',
@@ -49,13 +50,21 @@ class ProfileController extends Controller
             'phone' => $validated['emergency_contact'] ?: $user->phone,
         ]);
 
-        $profileData = collect($validated)->except(['cnic'])->toArray();
+        $profileData = collect($validated)->except(['cnic', 'profile_picture'])->toArray();
+
+        if ($request->hasFile('profile_picture')) {
+            $existing = $user->studentProfile?->profile_picture;
+            if ($existing && \Illuminate\Support\Facades\Storage::disk('public')->exists($existing)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($existing);
+            }
+            $profileData['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+        }
 
         $user->studentProfile()->updateOrCreate(
             ['user_id' => $user->id],
             $profileData
         );
 
-        return redirect()->back()->with('success', 'Master Student Profile & Academic Record saved successfully.');
+        return redirect()->back()->with('success', 'Master Student Profile, Photo & Academic Record saved successfully.');
     }
 }

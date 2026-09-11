@@ -47,4 +47,14 @@ return [
         'sender_id' => env('SMS_SENDER_ID', 'GTTI-TEVTA'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Institutional Campus Network Configuration (Phase 34)
+    |--------------------------------------------------------------------------
+    */
+    'campus' => [
+        'subnets' => env('CAMPUS_NETWORK_SUBNETS', '192.168.1.0/24,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12'),
+        'late_time' => env('FACULTY_ATTENDANCE_LATE_TIME', '08:30'),
+    ],
+
 ];

@@ -17,20 +17,18 @@ class ClerkDashboardController extends Controller
     public function index(): Response
     {
         $totalApplications = Application::count();
-        $pendingScrutiny = Application::where('status', 'submitted')->count();
+        $pendingScrutiny = Application::pendingScrutiny()->count();
         $verifiedApplications = Application::where('status', 'verified')->count();
         $rejectedApplications = Application::where('status', 'rejected')->count();
         $scheduledTestsCount = Application::whereNotNull('test_date')->count();
+        $admittedApplications = Application::admitted()->count();
         $coursesCount = Course::count();
 
         // Applications scrutinized today
         $scrutinizedToday = Application::whereDate('scrutinized_at', today())->count();
 
         // Applications with uploaded bank receipt awaiting clerk verification
-        $pendingFeeVerifications = Application::where(function ($q) {
-            $q->where('fee_status', 'pending_verification')
-              ->orWhereNotNull('challan_receipt_path');
-        })->where('status', '!=', 'confirmed')->count();
+        $pendingFeeVerifications = Application::pendingFeeVerification()->count();
 
         // Recent applications awaiting scrutiny or recently updated
         $recentApplications = Application::with(['studentProfile.user', 'course'])
@@ -58,7 +56,7 @@ class ClerkDashboardController extends Controller
         $coursesSummary = Course::withCount([
             'applications as total_applicants',
             'applications as pending_applicants' => function ($q) {
-                $q->where('status', 'submitted');
+                $q->pendingScrutiny();
             },
             'applications as verified_applicants' => function ($q) {
                 $q->where('status', 'verified');
@@ -67,10 +65,7 @@ class ClerkDashboardController extends Controller
                 $q->whereNotNull('test_date');
             },
             'applications as pending_fee_applicants' => function ($q) {
-                $q->where(function ($sub) {
-                    $sub->where('fee_status', 'pending_verification')
-                        ->orWhereNotNull('challan_receipt_path');
-                })->where('status', '!=', 'confirmed');
+                $q->pendingFeeVerification();
             },
         ])->get();
 
@@ -81,6 +76,7 @@ class ClerkDashboardController extends Controller
                 'verified_applications' => $verifiedApplications,
                 'rejected_applications' => $rejectedApplications,
                 'pending_fee_verifications' => $pendingFeeVerifications,
+                'admitted_applications' => $admittedApplications,
                 'scheduled_tests' => $scheduledTestsCount,
                 'courses_count' => $coursesCount,
                 'scrutinized_today' => $scrutinizedToday,

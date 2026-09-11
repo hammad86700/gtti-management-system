@@ -29,11 +29,15 @@ import {
     Layers,
     ShieldAlert,
     AlertTriangle,
-    Search
+    Search,
+    UserCheck,
+    ClipboardCheck,
+    Clock
 } from 'lucide-react';
 import Dropdown from '@/Components/Dropdown';
 import ErrorBoundary from '@/Components/ErrorBoundary';
 import MobileBottomNav from '@/Components/MobileBottomNav';
+import ThemeToggle from '@/Components/UI/ThemeToggle';
 
 export default function AuthenticatedLayout({ header, children }) {
     const { auth, flash = {}, site_settings: siteSettings = {} } = usePage().props;
@@ -70,18 +74,25 @@ export default function AuthenticatedLayout({ header, children }) {
     const isSecurityContext = isSecurityRoute || (!isAdmin && isSecurity);
     const isStudentRoute = route().current('student.*') || route().current('dashboard');
 
-    if (isAdmin && !isTeacherRoute && !isStudentRoute && !isSecurityRoute) {
-        roleLabel = 'Admin';
-        defaultBreadcrumb = 'Admin Console';
+    if (isAdmin && !isTeacherRoute && !isStudentRoute) {
+        roleLabel = isSecurityRoute ? 'Admin (Security Oversight)' : 'Admin';
+        defaultBreadcrumb = isSecurityRoute ? 'Gate Security & ID Verification' : 'Admin Console';
         navGroups = [
             {
-                label: 'Command Center',
+                label: isSecurityRoute ? 'Executive Security Oversight' : 'Command Center',
                 items: [
                     {
                         name: 'Admin Dashboard',
                         href: route('admin.dashboard'),
                         active: route().current('admin.dashboard'),
                         icon: LayoutDashboard,
+                    },
+                    {
+                        name: 'Gate Security Portal',
+                        href: route('security.gate.index'),
+                        active: route().current('security.gate.*'),
+                        icon: ShieldCheck,
+                        badge: 'Live',
                     },
                     {
                         name: 'Admissions Review',
@@ -123,8 +134,15 @@ export default function AuthenticatedLayout({ header, children }) {
                     {
                         name: 'Instructor Dashboard',
                         href: route('teacher.dashboard'),
-                        active: route().current('teacher.dashboard') || (route().current('teacher.*') && !route().current('teacher.leaves.*') && !route().current('teacher.demands.*') && !route().current('teacher.billing.*') && !route().current('teacher.discipline.*')),
+                        active: route().current('teacher.dashboard') || (route().current('teacher.*') && !route().current('teacher.leaves.*') && !route().current('teacher.demands.*') && !route().current('teacher.billing.*') && !route().current('teacher.discipline.*') && !route().current('teacher.faculty-attendance.*')),
                         icon: LayoutDashboard,
+                    },
+                    {
+                        name: 'Daily Check-In & Leaves',
+                        href: route('teacher.faculty-attendance.index'),
+                        active: route().current('teacher.faculty-attendance.*'),
+                        icon: ClipboardCheck,
+                        badge: 'Self',
                     },
                     {
                         name: 'Trainee Leaves',
@@ -189,8 +207,8 @@ export default function AuthenticatedLayout({ header, children }) {
                 ],
             },
         ];
-    } else if (isSecurity) {
-        roleLabel = 'Security';
+    } else if (isSecurityContext || isSecurity) {
+        roleLabel = 'Security Officer';
         defaultBreadcrumb = 'Gate Security Portal';
         navGroups = [
             {
@@ -212,7 +230,36 @@ export default function AuthenticatedLayout({ header, children }) {
                 ],
             },
         ];
-    } else if (!user?.is_enrolled) {
+    } else if (isClerk) {
+        roleLabel = 'Admission Clerk';
+        defaultBreadcrumb = 'Clerk Operations Desk';
+        navGroups = [
+            {
+                label: 'Clerk Operations',
+                items: [
+                    {
+                        name: 'Clerk Dashboard',
+                        href: route('clerk.dashboard'),
+                        active: route().current('clerk.dashboard'),
+                        icon: LayoutDashboard,
+                    },
+                    {
+                        name: 'Gate Security Portal',
+                        href: route('security.gate.index'),
+                        active: route().current('security.gate.*'),
+                        icon: ShieldCheck,
+                        badge: 'Live',
+                    },
+                    {
+                        name: 'Applications',
+                        href: route('clerk.applications.index'),
+                        active: route().current('clerk.applications.*'),
+                        icon: FileCheck,
+                    },
+                ],
+            },
+        ];
+    } else if (!user?.is_enrolled && !isAdmin && !isTeacher && !isClerk && !isSecurity) {
         // Applicant (In Admission Stage)
         roleLabel = 'Applicant';
         defaultBreadcrumb = 'Applicant Admission Portal';
@@ -269,6 +316,13 @@ export default function AuthenticatedLayout({ header, children }) {
                         icon: LayoutDashboard,
                     },
                     {
+                        name: 'Class Timetable',
+                        href: route('student.timetable.index'),
+                        active: route().current('student.timetable.*'),
+                        icon: Clock,
+                        badge: 'Schedule',
+                    },
+                    {
                         name: 'CBT Examinations',
                         href: route('student.online-tests.index'),
                         active: route().current('student.online-tests.*'),
@@ -287,6 +341,13 @@ export default function AuthenticatedLayout({ header, children }) {
             {
                 label: 'Student Services',
                 items: [
+                    {
+                        name: 'Course Certificate',
+                        href: route('student.certificates.index'),
+                        active: route().current('student.certificates.*'),
+                        icon: Award,
+                        badge: 'Parchment',
+                    },
                     {
                         name: 'Leave Applications',
                         href: route('student.leaves.index'),
@@ -319,7 +380,7 @@ export default function AuthenticatedLayout({ header, children }) {
     }
 
     return (
-        <div className="min-h-screen bg-[#F4F6F8] text-slate-900 flex flex-col antialiased font-sans">
+        <div className="min-h-screen bg-[#F4F6F8] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col antialiased font-sans transition-colors duration-200">
             {/* Executive Authority Banner for Principal / Super Admin inspecting subordinate portals */}
             {isAdmin && (isTeacherRoute || isStudentRoute || isSecurityRoute) && (
                 <div className="bg-[#0B3B24] border-b border-emerald-600/50 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-white shadow-md z-50 sticky top-0">
@@ -471,23 +532,23 @@ export default function AuthenticatedLayout({ header, children }) {
             {/* Main Content Area */}
             <div className="lg:pl-72 flex flex-col flex-1 min-h-screen">
                 {/* Sticky Global Top Navbar */}
-                <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
+                <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
                     {/* Left: Mobile Toggle & Institutional Breadcrumbs */}
                     <div className="flex items-center space-x-3 shrink-0">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-[#0B3B24] hover:bg-slate-100 focus:outline-none"
+                            className="lg:hidden p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-[#0B3B24] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none"
                             aria-label="Open sidebar"
                         >
                             <Menu className="h-5 w-5" />
                         </button>
                         <div className="flex items-center space-x-2.5 text-xs font-medium">
-                            <div className="h-7 w-7 rounded-lg bg-white p-0.5 border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
+                            <div className="h-7 w-7 rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-center shrink-0">
                                 <img src="/images/tevta-logo.png" alt="TEVTA" className="h-full w-full object-contain" />
                             </div>
-                            <span className="font-bold text-[#0B3B24] tracking-tight">GTTI RYK</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-600 font-semibold hidden sm:inline">{defaultBreadcrumb}</span>
+                            <span className="font-bold text-[#0B3B24] dark:text-emerald-400 tracking-tight">GTTI RYK</span>
+                            <span className="text-slate-300 dark:text-slate-700">•</span>
+                            <span className="text-slate-600 dark:text-slate-300 font-semibold hidden sm:inline">{defaultBreadcrumb}</span>
                         </div>
                     </div>
 
@@ -499,14 +560,14 @@ export default function AuthenticatedLayout({ header, children }) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search students, staff, records..."
-                            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-full text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-slate-400 shadow-xs transition"
+                            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-xs transition"
                         />
                     </div>
 
-                    {/* Right: Period Toggle Pills, Notifications & User Profile Pill */}
+                    {/* Right: Period Toggle Pills, Theme Toggle, Notifications & User Profile Pill */}
                     <div className="flex items-center space-x-2.5 shrink-0">
                         {/* Period Toggle Segmented Control */}
-                        <div className="hidden sm:inline-flex p-0.5 bg-slate-100 rounded-full border border-slate-200 text-xs font-semibold">
+                        <div className="hidden sm:inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-xs font-semibold">
                             {['Week', 'Month', 'Session'].map((p) => (
                                 <button
                                     key={p}
@@ -515,7 +576,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
                                         period === p
                                             ? 'bg-[#0B3B24] text-white shadow-xs font-semibold'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 >
                                     {p}
@@ -523,14 +584,17 @@ export default function AuthenticatedLayout({ header, children }) {
                             ))}
                         </div>
 
+                        {/* Dark/Light Mode Theme Toggle */}
+                        <ThemeToggle variant="header" />
+
                         {/* Notification Bell with Badge */}
                         <Link
                             href={isAdmin ? route('admin.announcements.index') : '#'}
-                            className="relative p-2 rounded-full text-slate-500 hover:text-[#0B3B24] hover:bg-slate-100 transition"
+                            className="relative p-2 rounded-full text-slate-500 dark:text-slate-400 hover:text-[#0B3B24] dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             title="Institutional Notices"
                         >
                             <Bell className="h-4 w-4" />
-                            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                         </Link>
 
                         {/* User Dropdown */}
@@ -539,18 +603,18 @@ export default function AuthenticatedLayout({ header, children }) {
                                 <Dropdown.Trigger>
                                     <button
                                         type="button"
-                                        className="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition shadow-xs focus:outline-none"
+                                        className="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition shadow-xs focus:outline-none"
                                     >
                                         <div className="h-7 w-7 rounded-lg bg-[#0B3B24] text-white font-bold flex items-center justify-center text-xs shadow-xs">
                                             {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                                         </div>
                                         <div className="hidden lg:block text-left pr-1">
-                                            <p className="text-xs font-bold text-slate-800 leading-none truncate max-w-[110px]">
+                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-none truncate max-w-[110px]">
                                                 {user?.name}
                                             </p>
                                             <span className="text-[10px] text-slate-400 font-medium">{roleLabel}</span>
                                         </div>
-                                        <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
                                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                             <span className="hidden sm:inline">Active</span>
                                         </span>
@@ -558,32 +622,32 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </button>
                                 </Dropdown.Trigger>
 
-                                <Dropdown.Content contentClasses="py-1 bg-white border border-slate-200 text-slate-700 shadow-xl rounded-2xl min-w-[200px]">
-                                    <div className="px-4 py-2.5 border-b border-slate-100 text-xs">
-                                        <p className="font-bold text-slate-900 truncate">{user?.name}</p>
-                                        <p className="text-slate-500 truncate text-[11px]">{user?.email}</p>
-                                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <Dropdown.Content contentClasses="py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 shadow-xl rounded-2xl min-w-[200px]">
+                                    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 text-xs">
+                                        <p className="font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
+                                        <p className="text-slate-500 dark:text-slate-400 truncate text-[11px]">{user?.email}</p>
+                                        <span className="mt-1 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60">
                                             {roleLabel} Portal
                                         </span>
                                     </div>
                                     {isAdmin && (
-                                        <Dropdown.Link href={route('admin.dashboard')} className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24]">
+                                        <Dropdown.Link href={route('admin.dashboard')} className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400">
                                             Admin Command Center
                                         </Dropdown.Link>
                                     )}
                                     {isTeacher && (
-                                        <Dropdown.Link href={route('teacher.dashboard')} className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24]">
+                                        <Dropdown.Link href={route('teacher.dashboard')} className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400">
                                             Instructor Dashboard
                                         </Dropdown.Link>
                                     )}
-                                    <Dropdown.Link href={route('profile.edit')} className="text-xs text-slate-600 hover:bg-slate-50 hover:text-[#0B3B24]">
+                                    <Dropdown.Link href={route('profile.edit')} className="text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#0B3B24] dark:hover:text-emerald-400">
                                         Profile Settings
                                     </Dropdown.Link>
                                     <Dropdown.Link
                                         href={route('logout')}
                                         method="post"
                                         as="button"
-                                        className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold"
+                                        className="text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 font-semibold"
                                     >
                                         Log Out
                                     </Dropdown.Link>
@@ -595,7 +659,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
                 {/* Page Sub-Header / Action Ribbon (Rendered when page provides a header prop) */}
                 {header && (
-                    <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-4 shadow-2xs">
+                    <div className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 py-4 shadow-2xs">
                         {header}
                     </div>
                 )}
@@ -604,26 +668,26 @@ export default function AuthenticatedLayout({ header, children }) {
                 <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${!isAdmin && !isTeacher ? 'pb-20 md:pb-8' : ''}`}>
                     {/* Global Flash Alerts */}
                     {flash?.success && (
-                        <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="mb-5 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                             <div className="flex-1 leading-relaxed">{flash.success}</div>
                         </div>
                     )}
                     {flash?.error && (
-                        <div className="mb-5 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
-                            <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="mb-5 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800/60 text-rose-900 dark:text-rose-200 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                             <div className="flex-1 leading-relaxed">{flash.error}</div>
                         </div>
                     )}
                     {flash?.warning && (
-                        <div className="mb-5 p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
-                            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                             <div className="flex-1 leading-relaxed">{flash.warning}</div>
                         </div>
                     )}
                     {flash?.info && (
-                        <div className="mb-5 p-4 rounded-2xl bg-sky-50 border border-sky-300 text-sky-900 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
-                            <Bell className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                        <div className="mb-5 p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800/60 text-sky-900 dark:text-sky-200 text-xs sm:text-sm font-semibold flex items-start space-x-3 shadow-xs">
+                            <Bell className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
                             <div className="flex-1 leading-relaxed">{flash.info}</div>
                         </div>
                     )}

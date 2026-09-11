@@ -21,11 +21,14 @@ class ApplicationReviewController extends Controller
         $courseId = $request->input('course_id');
         $status = $request->input('status', 'all');
         $feeStatus = $request->input('fee_status', 'all');
+        $shift = $request->input('shift', 'all');
         $search = $request->input('search');
 
         $query = Application::with([
             'studentProfile.user',
+            'studentProfile.educations',
             'course.trade.program.department',
+            'batch',
             'documents',
             'scrutinizer',
             'feeChallan',
@@ -35,19 +38,24 @@ class ApplicationReviewController extends Controller
             $query->where('course_id', $courseId);
         }
 
+        if ($shift && $shift !== 'all') {
+            $query->where('shift', ucfirst(strtolower($shift)));
+        }
+
         if ($status && $status !== 'all') {
-            if ($status === 'pending') {
-                $query->whereIn('status', ['pending', 'submitted']);
-            } elseif ($status === 'admitted') {
-                $query->whereIn('status', ['admitted', 'confirmed']);
+            if (in_array($status, ['pending', 'submitted'])) {
+                $query->pendingScrutiny();
+            } elseif (in_array($status, ['admitted', 'confirmed'])) {
+                $query->admitted();
             } elseif (in_array($status, ['selected', 'selected_for_admission'])) {
                 $query->whereIn('status', ['selected', 'selected_for_admission']);
             } elseif ($status === 'pending_fee') {
+                $query->pendingFeeVerification();
+            } elseif ($status === 'challan_issued') {
                 $query->where(function ($q) {
-                    $q->where('fee_status', 'pending_verification')
-                      ->orWhereNotNull('challan_receipt_path')
-                      ->orWhere('status', 'receipt_submitted');
-                })->whereNotIn('status', ['admitted', 'confirmed']);
+                    $q->where('status', 'challan_issued')
+                      ->orWhereNotNull('clerk_challan_path');
+                })->whereNotIn('status', ['admitted', 'confirmed', 'receipt_submitted']);
             } else {
                 $query->where('status', $status);
             }
@@ -55,18 +63,17 @@ class ApplicationReviewController extends Controller
 
         if ($feeStatus && $feeStatus !== 'all') {
             if ($feeStatus === 'pending_verification') {
-                $query->where(function ($q) {
-                    $q->where('fee_status', 'pending_verification')
-                      ->orWhereNotNull('challan_receipt_path')
-                      ->orWhere('status', 'receipt_submitted');
-                })->whereNotIn('status', ['admitted', 'confirmed']);
+                $query->pendingFeeVerification();
             } elseif ($feeStatus === 'paid') {
-                $query->where('fee_status', 'paid');
+                $query->where(function ($q) {
+                    $q->where('fee_status', 'paid')
+                      ->orWhereIn('status', ['admitted', 'confirmed']);
+                });
             } elseif ($feeStatus === 'unpaid') {
                 $query->where(function ($q) {
                     $q->where('fee_status', 'unpaid')
                       ->orWhereNull('fee_status');
-                });
+                })->whereNotIn('status', ['admitted', 'confirmed']);
             }
         }
 
@@ -85,31 +92,33 @@ class ApplicationReviewController extends Controller
         $courses = Course::withCount([
             'applications as total_count',
             'applications as pending_count' => function ($q) {
-                $q->whereIn('status', ['pending', 'submitted']);
+                $q->pendingScrutiny();
             },
             'applications as pending_fee_count' => function ($q) {
-                $q->where(function ($sub) {
-                    $sub->where('fee_status', 'pending_verification')
-                        ->orWhereNotNull('challan_receipt_path')
-                        ->orWhere('status', 'receipt_submitted');
-                })->whereNotIn('status', ['admitted', 'confirmed']);
+                $q->pendingFeeVerification();
             },
         ])->orderBy('name')->get();
 
-        $pendingFeeCount = Application::where(function ($q) {
-            $q->where('fee_status', 'pending_verification')
-              ->orWhereNotNull('challan_receipt_path')
-              ->orWhere('status', 'receipt_submitted');
-        })->whereNotIn('status', ['admitted', 'confirmed'])->count();
+        $pendingFeeCount = Application::pendingFeeVerification()->count();
+        $pendingScrutinyCount = Application::pendingScrutiny()->count();
+
+        $shiftStats = [
+            'total' => Application::count(),
+            'morning' => Application::where('shift', 'Morning')->count(),
+            'evening' => Application::where('shift', 'Evening')->count(),
+        ];
 
         return Inertia::render('Clerk/Applications/Index', [
             'applications' => $applications,
             'courses' => $courses,
             'pendingFeeCount' => $pendingFeeCount,
+            'pendingScrutinyCount' => $pendingScrutinyCount,
+            'shiftStats' => $shiftStats,
             'filters' => [
                 'course_id' => $courseId,
                 'status' => $status,
                 'fee_status' => $feeStatus,
+                'shift' => $shift,
                 'search' => $search,
             ],
         ]);
@@ -311,6 +320,53 @@ class ApplicationReviewController extends Controller
     }
 
     /**
+     * Switch an applicant's shift (Morning <-> Evening) and dynamically reassign target batch.
+     */
+    public function switchShift(Request $request, int $id): RedirectResponse
+    {
+        $request->validate([
+            'shift' => 'required|in:Morning,Evening,morning,evening',
+        ]);
+
+        $application = Application::with(['studentProfile.user', 'course'])->findOrFail($id);
+        $course = $application->course;
+        $newShift = ucfirst(strtolower($request->shift));
+
+        // Ensure target shift batch exists
+        $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)
+            ->where('shift', $newShift)
+            ->first();
+
+        if (!$batch) {
+            $course->ensureShiftBatchesExist();
+            $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)
+                ->where('shift', $newShift)
+                ->first();
+        }
+
+        $application->update([
+            'shift' => $newShift,
+            'batch_id' => $batch?->id,
+        ]);
+
+        // If candidate already has an active enrollment, update enrollment's batch as well
+        if ($application->student_profile_id) {
+            \App\Domains\Student\Models\Enrollment::where('student_profile_id', $application->student_profile_id)
+                ->where('course_id', $course->id)
+                ->update(['batch_id' => $batch?->id]);
+        }
+
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy(auth()->user())
+                ->performedOn($application)
+                ->log("Clerk updated candidate '{$application->studentProfile?->user?->name}' shift preference to {$newShift}");
+        }
+
+        return redirect()->back()->with('success', "Candidate {$application->studentProfile?->user?->name}'s shift switched to {$newShift} successfully.");
+    }
+
+    /**
      * Download or view detailed dossier for candidate.
      */
     public function downloadDossier(int $id): JsonResponse
@@ -397,13 +453,27 @@ class ApplicationReviewController extends Controller
         }
 
         // 2. Create official Enrollment with is_lms_active = true (Unlocks full LMS cockpit)
-        $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)->first();
+        $appShift = ucfirst(strtolower($application->shift ?? 'Morning'));
+        $batch = null;
+        if ($application->batch_id) {
+            $batch = \App\Domains\Organization\Models\Batch::find($application->batch_id);
+        }
+        if (!$batch) {
+            $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)
+                ->where(function ($q) use ($appShift) {
+                    $q->where('shift', $appShift)
+                      ->orWhere('shift', strtolower($appShift));
+                })->first();
+        }
+        if (!$batch) {
+            $batch = \App\Domains\Organization\Models\Batch::where('course_id', $course->id)->first();
+        }
         if (!$batch) {
             $batch = \App\Domains\Organization\Models\Batch::create([
                 'course_id' => $course->id,
-                'name' => $course->name . ' - Session ' . date('Y'),
+                'name' => $course->name . ' - ' . $appShift . ' Batch',
                 'session_year' => date('Y') . '-' . (date('Y') + 1),
-                'shift' => 'morning',
+                'shift' => $appShift,
             ]);
         }
 

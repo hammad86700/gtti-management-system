@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             OrganizationSeeder::class,
             BatchSeeder::class,
+            SiteSettingsSeeder::class,
         ]);
     }
 }

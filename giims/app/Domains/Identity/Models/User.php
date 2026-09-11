@@ -132,6 +132,21 @@ class User extends Authenticatable
         return $this->hasMany(\App\Domains\Operations\Models\TeacherBill::class);
     }
 
+    public function facultyAttendances(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Domains\Attendance\Models\FacultyAttendance::class);
+    }
+
+    public function facultyLeaves(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Domains\Attendance\Models\FacultyLeave::class);
+    }
+
+    public function staffProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Domains\Staff\Models\StaffProfile::class);
+    }
+
     /**
      * Check if user has one or more roles.
      *

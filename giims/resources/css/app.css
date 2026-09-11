@@ -21,6 +21,13 @@
     --govt-dark: #0B3B24;
 }
 
+.dark {
+    --brand-canvas: #0B1120;
+    --govt-canvas: #0B1120;
+    --govt-surface: #1E293B;
+    --brand-pine-surface: #0F172A;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -30,6 +37,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--brand-canvas);
     color: #0F172A;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body {
+    background-color: #0B1120;
+    color: #F8FAFC;
 }
 
 /* Prevent mobile browser auto-zoom on iOS/Android when focusing inputs */
@@ -47,18 +60,31 @@ body {
 ::-webkit-scrollbar-track {
     background: #F1F5F1;
 }
+.dark ::-webkit-scrollbar-track {
+    background: #0F172A;
+}
 ::-webkit-scrollbar-thumb {
     background: #A9DCBE;
     border-radius: 9999px;
 }
+.dark ::-webkit-scrollbar-thumb {
+    background: #1E3A2F;
+}
 ::-webkit-scrollbar-thumb:hover {
     background: #006B3F;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #10B981;
 }
 
 /* Selection color */
 ::selection {
     background-color: #00401A;
     color: #FFFFFF;
+}
+.dark ::selection {
+    background-color: #10B981;
+    color: #062114;
 }
 
 /* Government-style gold accent bar */
@@ -74,6 +100,12 @@ body {
     border: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
     overflow: hidden;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.dark .govt-card {
+    background-color: #1E293B;
+    border-color: rgba(51, 65, 85, 0.8);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
 
 .govt-card-accent {
@@ -83,6 +115,12 @@ body {
     box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
     overflow: hidden;
     border-top: 3px solid #00401A;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.dark .govt-card-accent {
+    background-color: #1E293B;
+    border-color: rgba(51, 65, 85, 0.8);
+    border-top: 3px solid #10B981;
 }
 
 /* Stat card hover */
@@ -94,9 +132,17 @@ body {
     padding: 1.25rem;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.dark .govt-stat-card {
+    background-color: #1E293B;
+    border-color: rgba(51, 65, 85, 0.8);
+}
 .govt-stat-card:hover {
     box-shadow: 0 6px 16px -2px rgba(0, 64, 26, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
     border-color: rgba(0, 64, 26, 0.25);
+}
+.dark .govt-stat-card:hover {
+    box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.5);
+    border-color: rgba(16, 185, 129, 0.4);
 }
 
 /* Table styling */
@@ -110,20 +156,94 @@ body {
     padding: 0.75rem 1rem;
     text-align: left;
     border-bottom: 1px solid #E2E8F0;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
+.dark .govt-table thead th {
+    background-color: #0F172A;
+    color: #94A3B8;
+    border-bottom: 1px solid #334155;
+}
+
 .govt-table tbody td {
     padding: 0.875rem 1rem;
     font-size: 0.875rem;
     color: #1E293B;
     border-bottom: 1px solid #F1F5F9;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
+.dark .govt-table tbody td {
+    color: #E2E8F0;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+}
+
 .govt-table tbody tr:hover {
     background-color: #F4F8F5;
+}
+.dark .govt-table tbody tr:hover {
+    background-color: rgba(51, 65, 85, 0.3);
 }
 
 /* Smooth transitions for interactive elements */
 .govt-transition {
     transition: all 0.2s ease-in-out;
+}
+
+/* Performance Grading Color Tiers */
+.tier-exceeding {
+    background-color: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+}
+.dark .tier-exceeding {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.tier-meeting {
+    background-color: #F0F9FF;
+    color: #0369A1;
+    border: 1px solid #BAE6FD;
+}
+.dark .tier-meeting {
+    background-color: rgba(14, 165, 233, 0.15);
+    color: #38BDF8;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+.tier-approaching {
+    background-color: #FFFBEB;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+}
+.dark .tier-approaching {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.tier-below {
+    background-color: #FFF1F2;
+    color: #BE123C;
+    border: 1px solid #FECDD3;
+}
+.dark .tier-below {
+    background-color: rgba(244, 63, 94, 0.15);
+    color: #FB7185;
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+/* Institutional Card Surfaces */
+.card-surface {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.dark .card-surface {
+    background-color: #1E293B;
+    border-color: rgba(51, 65, 85, 0.8);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Print media refinements */
@@ -135,33 +255,4 @@ body {
         background: white !important;
         color: black !important;
     }
-}
-
-/* Performance Grading Color Tiers */
-.tier-exceeding {
-    background-color: #ECFDF5;
-    color: #047857;
-    border: 1px solid #A7F3D0;
-}
-.tier-meeting {
-    background-color: #F0F9FF;
-    color: #0369A1;
-    border: 1px solid #BAE6FD;
-}
-.tier-approaching {
-    background-color: #FFFBEB;
-    color: #B45309;
-    border: 1px solid #FDE68A;
-}
-.tier-below {
-    background-color: #FFF1F2;
-    color: #BE123C;
-    border: 1px solid #FECDD3;
-}
-
-/* Institutional Card Surfaces */
-.card-surface {
-    background-color: #FFFFFF;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }

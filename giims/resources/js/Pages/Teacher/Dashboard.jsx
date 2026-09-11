@@ -47,6 +47,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Com
 import Badge from '@/Components/UI/Badge';
 import Tabs from '@/Components/UI/Tabs';
 import EmptyState from '@/Components/UI/EmptyState';
+import TeacherAttendanceWidget from '@/Components/Teacher/TeacherAttendanceWidget';
 
 export default function Dashboard({
     batches = [],
@@ -54,7 +55,13 @@ export default function Dashboard({
     consumables = [],
     assignedAssets = [],
     visitingStats = null,
-    locationPresets = []
+    locationPresets = [],
+    facultyAttendanceToday = null,
+    facultyAttendanceSummary = null,
+    facultyLeaves = [],
+    clientIp = '',
+    isCampusIp = false,
+    lateCutoff = '08:30',
 }) {
     const { auth } = usePage().props;
     const user = auth.user;
@@ -315,6 +322,17 @@ export default function Dashboard({
                         </span>
                     </div>
                 </div>
+
+                {/* Phase 34: Faculty Self-Attendance with Daily Proof & Subnet Verification */}
+                <TeacherAttendanceWidget
+                    todayAttendance={facultyAttendanceToday}
+                    summary={facultyAttendanceSummary}
+                    recentLeaves={facultyLeaves}
+                    clientIp={clientIp}
+                    isCampusIp={isCampusIp}
+                    lateCutoff={lateCutoff}
+                />
+
                 {/* Sleek Instructor Greeting Banner */}
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-govt-green via-govt-green-600 to-[#002B12] text-white border border-govt-green-700/50 p-5 sm:p-6 shadow-sm">
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -438,64 +456,44 @@ export default function Dashboard({
                 {/* TAB 1: ASSIGNED ACADEMIC BATCHES */}
                 {activeTab === 'batches' && (
                     <div className="space-y-5">
-                        {/* Daily Classroom Attendance PIN Authority */}
+                        {/* Classroom Roll-Call Attendance & Monthly Registers */}
                         {batches.length > 0 && (
                             <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-govt-green via-govt-green-600 to-[#002610] text-white border border-govt-green-700/60 shadow-sm space-y-4">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                                     <div className="flex items-start space-x-3.5">
                                         <div className="h-11 w-11 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm">
-                                            <Key className="h-5 w-5 stroke-[2.5]" />
+                                            <ClipboardCheck className="h-5 w-5 stroke-[2.5]" />
                                         </div>
                                         <div className="space-y-0.5">
                                             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
-                                                    Classroom Authority
+                                                    Manual Attendance System
                                                 </span>
                                                 <span className="text-xs text-emerald-200 font-semibold flex items-center space-x-1">
-                                                    <Smartphone className="h-3.5 w-3.5" />
-                                                    <span>Daily Student Self-Attendance PIN</span>
+                                                    <Users className="h-3.5 w-3.5" />
+                                                    <span>Present / Absent / Leave Roll Call</span>
                                                 </span>
                                             </div>
                                             <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                                                Generate Daily Class PIN for Board / Screen
+                                                Classroom Attendance & Monthly Day-by-Day Registers
                                             </h3>
                                             <p className="text-xs text-emerald-100/90 leading-relaxed max-w-2xl">
-                                                Generate a fresh 4-digit code each morning. Write it on the classroom whiteboard or project it on the screen so students can enter it in their GIIMS portal upon entering class.
+                                                Mark your batch students manually with 1-click Present, Absent, or Leave. Real-time status reflects instantly on student portals, and complete monthly registers track every date.
                                             </p>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                        {batches.map((batch) => {
-                                            const hasPin = Boolean(batch.today_session?.daily_pin);
-                                            return (
-                                                <button
-                                                    key={batch.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (hasPin) {
-                                                            setBoardModalBatchId(batch.id);
-                                                        } else {
-                                                            handleGenerateBatchPin(batch.id);
-                                                        }
-                                                    }}
-                                                    disabled={generatingPinBatchId === batch.id}
-                                                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm cursor-pointer ${
-                                                        hasPin
-                                                            ? 'bg-amber-400 hover:bg-amber-300 text-slate-950'
-                                                            : 'bg-white/15 hover:bg-white/25 text-white border border-white/20'
-                                                    }`}
-                                                >
-                                                    <Key className="h-3.5 w-3.5" />
-                                                    <span>
-                                                        {hasPin
-                                                            ? `PIN: ${batch.today_session.daily_pin} (${batch.name})`
-                                                            : `Generate PIN for ${batch.name}`}
-                                                    </span>
-                                                    {hasPin && <Tv className="h-3.5 w-3.5 ml-1" />}
-                                                </button>
-                                            );
-                                        })}
+                                        {batches.map((batch) => (
+                                            <Link
+                                                key={batch.id}
+                                                href={route('teacher.attendance.create', { batchId: batch.id })}
+                                                className="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm bg-amber-400 hover:bg-amber-300 text-slate-950 cursor-pointer"
+                                            >
+                                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                                <span>Mark Roll Call: {batch.name}</span>
+                                            </Link>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -577,180 +575,76 @@ export default function Dashboard({
                                                     </div>
                                                 )}
 
-                                                {/* Classroom GPS Geofence Area */}
-                                                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/60 border border-emerald-200/70 text-xs">
-                                                    <div className="flex items-center space-x-1.5 overflow-hidden">
-                                                        <MapPin className="h-3.5 w-3.5 text-govt-green shrink-0" />
-                                                        <span className="font-semibold text-slate-800 text-[11px] truncate">
-                                                            {batch.today_session?.location_name || 'Computer Lab 1 & 2'}
-                                                        </span>
-                                                        <span className="text-[10px] text-emerald-700 shrink-0 font-medium">
-                                                            ({batch.today_session?.radius_meters || 150}m)
-                                                        </span>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenZoneModal(batch)}
-                                                        className="px-2 py-0.5 rounded-md text-[10px] font-bold text-govt-green hover:bg-emerald-100 transition cursor-pointer flex items-center space-x-1 shrink-0"
-                                                        title="Select Classroom GPS Area"
-                                                    >
-                                                        <Sliders className="h-3 w-3" />
-                                                        <span>Set Area</span>
-                                                    </button>
-                                                </div>
-
-                                                {/* Daily Classroom Attendance PIN Box */}
-                                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                                                {/* Classroom Attendance Status & Fast Actions */}
+                                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5">
                                                     <div className="flex items-center justify-between text-xs">
                                                         <span className="font-bold text-slate-700 flex items-center space-x-1.5 text-[11px]">
-                                                            <Key className="h-3.5 w-3.5 text-govt-green" />
-                                                            <span>Today's Class PIN</span>
+                                                            <ClipboardCheck className="h-3.5 w-3.5 text-govt-green" />
+                                                            <span>Today's Class Roll Call</span>
                                                         </span>
-                                                        {hasPin ? (
-                                                            <span className="text-[10px] font-semibold text-govt-green flex items-center space-x-1">
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                                <span>{batch.today_session.pin_checkins_count || 0} Checked In</span>
+                                                        {batch.today_session ? (
+                                                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                                                <Check className="h-3 w-3" />
+                                                                <span>Recorded</span>
                                                             </span>
                                                         ) : (
-                                                            <span className="text-[10px] font-semibold text-slate-400">
-                                                                Pending Generation
+                                                            <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full">
+                                                                Pending Roll Call
                                                             </span>
                                                         )}
                                                     </div>
 
-                                                    {hasPin ? (
-                                                        <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-emerald-200">
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="text-xl font-mono font-black tracking-widest text-slate-900">
-                                                                    {batch.today_session.daily_pin}
+                                                    <div className="text-xs text-slate-600">
+                                                        {batch.today_session ? (
+                                                            <div className="flex items-center space-x-2 text-[11px]">
+                                                                <span className="text-emerald-700 font-bold">
+                                                                    {batch.today_session.attendances?.filter(a => a.status === 'present').length || 0} Present
                                                                 </span>
-                                                                <span className="text-[10px] text-slate-400">
-                                                                    (Active)
+                                                                <span>•</span>
+                                                                <span className="text-rose-600 font-bold">
+                                                                    {batch.today_session.attendances?.filter(a => a.status === 'absent').length || 0} Absent
+                                                                </span>
+                                                                <span>•</span>
+                                                                <span className="text-blue-600 font-bold">
+                                                                    {batch.today_session.attendances?.filter(a => a.status === 'leave').length || 0} Leave
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center space-x-1">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setBoardModalBatchId(batch.id)}
-                                                                    className="px-2 py-1 rounded-md bg-govt-green text-white hover:bg-govt-green-600 transition text-[10px] font-bold flex items-center space-x-1 cursor-pointer"
-                                                                    title="Project on Classroom Screen or Write on Board"
-                                                                >
-                                                                    <Tv className="h-3 w-3" />
-                                                                    <span>Board</span>
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleCopyPin(batch.today_session.daily_pin, batch.id)}
-                                                                    className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-                                                                    title="Copy PIN"
-                                                                >
-                                                                    {copiedBatchId === batch.id ? (
-                                                                        <Check className="h-3.5 w-3.5 text-govt-green" />
-                                                                    ) : (
-                                                                        <Copy className="h-3.5 w-3.5" />
-                                                                    )}
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleGenerateBatchPin(batch.id)}
-                                                                    disabled={generatingPinBatchId === batch.id}
-                                                                    className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-                                                                    title="Regenerate New PIN"
-                                                                >
-                                                                    <RefreshCw
-                                                                        className={`h-3.5 w-3.5 ${
-                                                                            generatingPinBatchId === batch.id ? 'animate-spin' : ''
-                                                                        }`}
-                                                                    />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleGenerateBatchPin(batch.id)}
-                                                            disabled={generatingPinBatchId === batch.id}
-                                                            className="w-full py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
+                                                        ) : (
+                                                            <span className="text-[11px] text-slate-500">
+                                                                No attendance submitted yet for today
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-2 pt-1">
+                                                        <Link
+                                                            href={route('teacher.attendance.create', { batchId: batch.id })}
+                                                            className="py-1.5 px-2 rounded-lg bg-govt-green hover:bg-govt-green-600 text-white font-bold text-[11px] transition flex items-center justify-center space-x-1 shadow-xs"
                                                         >
-                                                            <Key className="h-3.5 w-3.5" />
-                                                            <span>
-                                                                {generatingPinBatchId === batch.id
-                                                                    ? 'Generating PIN...'
-                                                                    : "Generate Today's Class PIN"}
-                                                            </span>
-                                                        </button>
-                                                    )}
+                                                            <ClipboardCheck className="h-3.5 w-3.5" />
+                                                            <span>{batch.today_session ? 'Edit Roll Call' : 'Mark Roll Call'}</span>
+                                                        </Link>
+
+                                                        <Link
+                                                            href={route('teacher.attendance.monthly', { batchId: batch.id })}
+                                                            className="py-1.5 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-[11px] transition flex items-center justify-center space-x-1"
+                                                        >
+                                                            <CalendarDays className="h-3.5 w-3.5 text-govt-green" />
+                                                            <span>Monthly Register</span>
+                                                        </Link>
+                                                    </div>
                                                 </div>
-
-                                                {/* Checked-In Trainees Presence & Final Teacher Confirmation */}
-                                                {batch.today_session && (batch.today_session.attendances?.length > 0 ? (
-                                                    <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2">
-                                                        <div className="flex items-center justify-between text-xs">
-                                                            <span className="font-bold text-slate-800 flex items-center space-x-1.5 text-[11px]">
-                                                                <UserCheck className="h-3.5 w-3.5 text-amber-700" />
-                                                                <span>Today's Trainee Presence</span>
-                                                            </span>
-                                                            <span className="text-[10px] font-bold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-full">
-                                                                {batch.today_session.attendances.length} Checked In
-                                                            </span>
-                                                        </div>
-
-                                                        <div className="flex items-center justify-between gap-2 text-xs">
-                                                            <div className="text-[11px] text-slate-600">
-                                                                {batch.today_session.pending_confirm_count > 0 ? (
-                                                                    <span className="text-amber-800 font-semibold">
-                                                                        ⚡ {batch.today_session.pending_confirm_count} awaiting confirmation
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-emerald-700 font-semibold flex items-center space-x-1">
-                                                                        <CheckCheck className="h-3.5 w-3.5" />
-                                                                        <span>All {batch.today_session.confirmed_count} confirmed present</span>
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex items-center space-x-1.5 shrink-0">
-                                                                {batch.today_session.pending_confirm_count > 0 && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleConfirmAll(batch.id)}
-                                                                        disabled={confirmingBatchId === batch.id}
-                                                                        className="px-2.5 py-1 rounded-lg bg-govt-green hover:bg-govt-green-600 text-white font-bold text-[10px] transition flex items-center space-x-1 shadow-xs cursor-pointer"
-                                                                        title="Confirm & lock all pending check-ins"
-                                                                    >
-                                                                        <Check className="h-3 w-3" />
-                                                                        <span>{confirmingBatchId === batch.id ? 'Confirming...' : 'Confirm All'}</span>
-                                                                    </button>
-                                                                )}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setReviewModalBatchId(batch.id)}
-                                                                    className="px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[10px] transition flex items-center space-x-1 cursor-pointer"
-                                                                    title="View student GPS & PIN check-in details"
-                                                                >
-                                                                    <Eye className="h-3 w-3" />
-                                                                    <span>Review</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
-                                                        <span>No student check-ins yet today</span>
-                                                        <span className="text-[10px] text-slate-400">0 of {traineesCount} Present</span>
-                                                    </div>
-                                                ))}
                                             </div>
 
                                             {/* Action Buttons Toolbar */}
                                             <div className="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                                                 <Link
-                                                    href={route('teacher.attendance.live', { batchId: batch.id })}
+                                                    href={route('teacher.attendance.create', { batchId: batch.id })}
                                                     className="py-2 px-1.5 rounded-lg bg-govt-green hover:bg-govt-green-600 text-white text-[10px] font-bold transition flex items-center justify-center space-x-1 shadow-xs"
-                                                    title="Start Live Geofenced Attendance Session"
+                                                    title="Mark Classroom Roll Call"
                                                 >
-                                                    <MapPin className="h-3 w-3" />
-                                                    <span>Live GPS</span>
+                                                    <ClipboardCheck className="h-3 w-3" />
+                                                    <span>Roll Call</span>
                                                 </Link>
                                                 <Link
                                                     href={route('teacher.curriculum.index', batch.id)}

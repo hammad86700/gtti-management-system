@@ -21,7 +21,7 @@ class CourseManagementController extends Controller
             ->withCount([
                 'applications as total_applicants',
                 'applications as pending_applicants' => function ($q) {
-                    $q->where('status', 'submitted');
+                    $q->pendingScrutiny();
                 },
                 'applications as verified_applicants' => function ($q) {
                     $q->where('status', 'verified');
@@ -65,6 +65,7 @@ class CourseManagementController extends Controller
             'interview_venue' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'is_published' => 'boolean',
+            'offered_shifts' => 'nullable|in:Both,Morning,Evening',
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
         ]);
@@ -93,6 +94,7 @@ class CourseManagementController extends Controller
             'entry_level' => $validated['entry_level'],
             'admission_type' => $validated['admission_type'],
             'requires_entrance_test' => $requiresTest,
+            'offered_shifts' => $validated['offered_shifts'] ?? 'Both',
             'intake_capacity' => $validated['intake_capacity'] ?? 50,
             'classes_start_date' => $validated['classes_start_date'] ?? null,
             'matric_weightage' => $validated['matric_weightage'] ?? 50,
@@ -105,6 +107,8 @@ class CourseManagementController extends Controller
             'syllabus_document_path' => $syllabusPath,
             'advertisement_image_path' => $adPath,
         ]);
+
+        $course->ensureShiftBatchesExist();
 
         if (function_exists('activity')) {
             activity()
@@ -143,6 +147,7 @@ class CourseManagementController extends Controller
             'interview_venue' => 'nullable|string|max:255',
             'is_active' => 'nullable',
             'is_published' => 'nullable',
+            'offered_shifts' => 'nullable|in:Both,Morning,Evening',
             'syllabus_document' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'advertisement_image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
             'remove_advertisement' => 'nullable',
@@ -180,6 +185,7 @@ class CourseManagementController extends Controller
             'entry_level' => $validated['entry_level'],
             'admission_type' => $validated['admission_type'],
             'requires_entrance_test' => $requiresTest,
+            'offered_shifts' => $validated['offered_shifts'] ?? ($course->offered_shifts ?: 'Both'),
             'intake_capacity' => $validated['intake_capacity'] ?? ($course->intake_capacity ?: 50),
             'classes_start_date' => array_key_exists('classes_start_date', $validated) ? $validated['classes_start_date'] : $course->classes_start_date,
             'matric_weightage' => $validated['matric_weightage'] ?? 50,
@@ -192,6 +198,8 @@ class CourseManagementController extends Controller
             'syllabus_document_path' => $syllabusPath,
             'advertisement_image_path' => $adPath,
         ]);
+
+        $course->ensureShiftBatchesExist();
 
         return redirect()->back()->with('success', "Course '{$course->name}' updated successfully.");
     }

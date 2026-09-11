@@ -2,6 +2,8 @@
 
 namespace App\Domains\Student\Models;
 
+use App\Domains\Identity\Models\User;
+use App\Domains\Organization\Models\Batch;
 use App\Domains\Organization\Models\Course;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +30,10 @@ class Certificate extends Model
     {
         return [
             'issue_date' => 'date',
+            'request_date' => 'date',
+            'collection_date' => 'date',
+            'approved_at' => 'datetime',
+            'is_digital_released' => 'boolean',
         ];
     }
 
@@ -45,5 +51,37 @@ class Certificate extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * Get the enrollment associated with this certificate.
+     */
+    public function enrollment(): BelongsTo
+    {
+        return $this->belongsTo(Enrollment::class);
+    }
+
+    /**
+     * Get the batch associated with this certificate.
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
+    /**
+     * Get the clerk/staff who issued/drafted this certificate.
+     */
+    public function issuer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    /**
+     * Get the admin/principal who authorized this certificate.
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

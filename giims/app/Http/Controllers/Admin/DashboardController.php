@@ -27,7 +27,7 @@ class DashboardController extends Controller
         }
 
         $totalStudents = Enrollment::where('status', 'active')->count();
-        $pendingApplications = Application::where('status', 'submitted')->count();
+        $pendingApplications = Application::pendingScrutiny()->count();
         $totalCourses = Course::count();
         $totalBatches = Batch::count();
         $pendingClearances = Clearance::where('overall_status', 'pending')->count();

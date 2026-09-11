@@ -22,7 +22,7 @@ class BulkNotificationController extends Controller
         $courses = Course::withCount([
             'applications as total_applicants',
             'applications as pending_applicants' => function ($q) {
-                $q->where('status', 'submitted');
+                $q->pendingScrutiny();
             },
             'applications as verified_applicants' => function ($q) {
                 $q->where('status', 'verified');

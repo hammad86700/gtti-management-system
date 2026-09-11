@@ -23,11 +23,12 @@ import {
     CreditCard
 } from 'lucide-react';
 
-export default function Index({ applications = {}, courses = [], filters = {}, pendingFeeCount = 0 }) {
+export default function Index({ applications = {}, courses = [], filters = {}, pendingFeeCount = 0, pendingScrutinyCount = 0, shiftStats = {} }) {
     const [search, setSearch] = useState(filters.search || '');
     const [selectedCourse, setSelectedCourse] = useState(filters.course_id || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
     const [selectedFeeStatus, setSelectedFeeStatus] = useState(filters.fee_status || 'all');
+    const [selectedShift, setSelectedShift] = useState(filters.shift || 'all');
     const [rejectModal, setRejectModal] = useState(false);
     const [dossierModal, setDossierModal] = useState(false);
     const [challanModal, setChallanModal] = useState(false);
@@ -99,6 +100,7 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
             course_id: selectedCourse || undefined,
             status: selectedStatus !== 'all' ? selectedStatus : undefined,
             fee_status: selectedFeeStatus !== 'all' ? selectedFeeStatus : undefined,
+            shift: selectedShift !== 'all' ? selectedShift : undefined,
         }, {
             preserveState: true,
         });
@@ -112,6 +114,7 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
             course_id: selectedCourse || undefined,
             status: status !== 'all' ? status : undefined,
             fee_status: feeStatus !== 'all' ? feeStatus : undefined,
+            shift: selectedShift !== 'all' ? selectedShift : undefined,
         }, {
             preserveState: true,
         });
@@ -188,7 +191,7 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
                     </div>
 
                     {/* Filter Controls */}
-                    <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                    <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-2">
                         {/* Course Dropdown */}
                         <div>
                             <select
@@ -205,10 +208,31 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
                             </select>
                         </div>
 
+                        {/* Shift Dropdown */}
+                        <div>
+                            <select
+                                value={selectedShift}
+                                onChange={(e) => setSelectedShift(e.target.value)}
+                                className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-bold"
+                            >
+                                <option value="all">All Shifts ({shiftStats.total ?? 'All'})</option>
+                                <option value="Morning">🌅 Morning Shift ({shiftStats.morning ?? 0})</option>
+                                <option value="Evening">🌙 Evening Shift ({shiftStats.evening ?? 0})</option>
+                            </select>
+                        </div>
+
                         {/* Status Dropdown */}
                         <div>
                             <select
-                                value={selectedFeeStatus === 'pending_verification' ? 'pending_fee' : selectedStatus}
+                                value={
+                                    selectedFeeStatus === 'pending_verification'
+                                        ? 'pending_fee'
+                                        : (selectedStatus === 'pending' || selectedStatus === 'submitted')
+                                            ? 'submitted'
+                                            : (selectedStatus === 'confirmed' || selectedStatus === 'admitted')
+                                                ? 'confirmed'
+                                                : selectedStatus
+                                }
                                 onChange={(e) => {
                                     if (e.target.value === 'pending_fee') {
                                         setSelectedStatus('all');
@@ -297,11 +321,18 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
                             className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center space-x-1.5 cursor-pointer ${
                                 selectedStatus === 'submitted' || selectedStatus === 'pending'
                                     ? 'bg-amber-400 text-slate-950 shadow-sm'
-                                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                                    : pendingScrutinyCount > 0
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                             }`}
                         >
                             <Clock className="h-3.5 w-3.5 text-amber-400" />
                             <span>Pending Scrutiny</span>
+                            {pendingScrutinyCount > 0 && (
+                                <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-mono">
+                                    {pendingScrutinyCount}
+                                </span>
+                            )}
                         </button>
 
                         <button
@@ -431,13 +462,31 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
 
                                                 <td className="py-3.5 px-4">
                                                     <div className="font-semibold text-white">{app.course?.name}</div>
-                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const nextShift = app.shift === 'Evening' ? 'Morning' : 'Evening';
+                                                                if (confirm(`Switch ${student?.name || 'candidate'}'s shift from ${app.shift || 'Morning'} to ${nextShift}? Target batch will be updated automatically.`)) {
+                                                                    router.post(route('clerk.applications.switch-shift', app.id), { shift: nextShift }, { preserveScroll: true });
+                                                                }
+                                                            }}
+                                                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full transition cursor-pointer hover:scale-105 ${
+                                                                app.shift === 'Evening' 
+                                                                    ? 'bg-purple-950/60 text-purple-300 border border-purple-800 hover:bg-purple-900/60' 
+                                                                    : 'bg-amber-950/60 text-amber-300 border border-amber-800 hover:bg-amber-900/60'
+                                                            }`}
+                                                            title={`Click to switch shift to ${app.shift === 'Evening' ? 'Morning' : 'Evening'}`}
+                                                        >
+                                                            {app.shift === 'Evening' ? '🌙 Evening ⇄' : '🌅 Morning ⇄'}
+                                                        </button>
                                                         <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                                                             app.course?.requires_entrance_test 
-                                                                ? 'bg-amber-950/60 text-amber-300 border border-amber-800' 
+                                                                ? 'bg-slate-950/60 text-slate-300 border border-slate-700' 
                                                                 : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
                                                         }`}>
-                                                            {app.course?.requires_entrance_test ? 'Track A: Test Required' : 'Track B: Direct FCFS'}
+                                                            {app.course?.requires_entrance_test ? 'Track A' : 'Track B'}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -707,39 +756,186 @@ export default function Index({ applications = {}, courses = [], filters = {}, p
                         </div>
 
                         {/* Candidate Details Grid */}
-                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Father Name</span>
-                                <span className="font-bold text-white">{activeApp.student_profile?.father_name || 'N/A'}</span>
+                        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 text-xs">
+                            <div className="flex items-center space-x-3">
+                                {activeApp.student_profile?.profile_picture_url ? (
+                                    <img
+                                        src={activeApp.student_profile.profile_picture_url}
+                                        alt={activeApp.student_profile?.user?.name}
+                                        className="h-12 w-12 rounded-xl object-cover border border-slate-700 shrink-0"
+                                    />
+                                ) : (
+                                    <div className="h-12 w-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 shrink-0">
+                                        <User className="h-6 w-6" />
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <div className="font-bold text-white text-sm truncate">
+                                        {activeApp.student_profile?.user?.name}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">
+                                        Applied: {activeApp.course?.name} &bull; App #{activeApp.application_number}
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">CNIC / Form B</span>
-                                <span className="font-mono text-amber-400 font-bold">{activeApp.student_profile?.user?.cnic || 'N/A'}</span>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800/80">
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Father Name</span>
+                                    <span className="font-bold text-white">{activeApp.student_profile?.father_name || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">CNIC / Form B</span>
+                                    <span className="font-mono text-amber-400 font-bold">{activeApp.student_profile?.user?.cnic || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Date of Birth & Gender</span>
+                                    <span className="text-slate-200">
+                                        {activeApp.student_profile?.dob || 'N/A'} ({activeApp.student_profile?.gender || 'N/A'})
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Guardian Name & Phone</span>
+                                    <span className="text-slate-200">
+                                        {activeApp.student_profile?.guardian_name || 'N/A'}{' '}
+                                        {activeApp.student_profile?.guardian_phone ? `(${activeApp.student_profile.guardian_phone})` : ''}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Domicile & Religion</span>
+                                    <span className="text-slate-200">
+                                        {activeApp.student_profile?.domicile_district || 'Rahim Yar Khan'} &bull; {activeApp.student_profile?.religion || 'Islam'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Requested Shift</span>
+                                    <div className="flex items-center space-x-2 mt-0.5">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            activeApp.shift === 'Evening'
+                                                ? 'bg-purple-950/60 text-purple-300 border border-purple-800'
+                                                : 'bg-amber-950/60 text-amber-300 border border-amber-800'
+                                        }`}>
+                                            {activeApp.shift === 'Evening' ? '🌙 Evening' : '🌅 Morning'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const nextShift = activeApp.shift === 'Evening' ? 'Morning' : 'Evening';
+                                                router.post(route('clerk.applications.switch-shift', activeApp.id), { shift: nextShift }, {
+                                                    preserveScroll: true,
+                                                    onSuccess: () => {
+                                                        setActiveApp((prev) => prev ? { ...prev, shift: nextShift } : null);
+                                                    },
+                                                });
+                                            }}
+                                            className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition cursor-pointer"
+                                            title="Switch Shift"
+                                        >
+                                            ⇄
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Application #</span>
-                                <span className="font-mono text-slate-300">{activeApp.application_number}</span>
+
+                            {/* Addresses */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-[11px]">
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Current Address</span>
+                                    <span className="text-slate-300">{activeApp.student_profile?.address || 'Not specified'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Permanent Address</span>
+                                    <span className="text-slate-300">{activeApp.student_profile?.permanent_address || 'Same as current address'}</span>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Matriculation Marks</span>
-                                <span className="font-bold text-emerald-400">
-                                    {activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks 
-                                        ? `${activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks} / ${activeApp.matric_total_marks || activeApp.student_profile?.matric_total_marks || 1100} (${(((activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks) / (activeApp.matric_total_marks || activeApp.student_profile?.matric_total_marks || 1100)) * 100).toFixed(1)}%)`
-                                        : 'Not recorded'}
+                        </div>
+
+                        {/* Chronological Educational History */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Award className="h-4 w-4" />
+                                    <span>Educational Qualifications Timeline</span>
+                                </h4>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                    {activeApp.student_profile?.educations?.length || 0} Records Found
                                 </span>
                             </div>
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Intermediate Marks</span>
-                                <span className="font-bold text-amber-300">
-                                    {activeApp.intermediate_obtained_marks || activeApp.student_profile?.intermediate_obtained_marks 
-                                        ? `${activeApp.intermediate_obtained_marks || activeApp.student_profile?.intermediate_obtained_marks} / ${activeApp.intermediate_total_marks || activeApp.student_profile?.intermediate_total_marks || 1100}`
-                                        : 'N/A'}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase block">Course Applied</span>
-                                <span className="font-bold text-slate-200 truncate block">{activeApp.course?.name}</span>
-                            </div>
+
+                            {activeApp.student_profile?.educations && activeApp.student_profile.educations.length > 0 ? (
+                                <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+                                    <table className="w-full text-left text-xs text-slate-300">
+                                        <thead className="bg-slate-900 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
+                                            <tr>
+                                                <th className="py-2.5 px-3">Level & Title</th>
+                                                <th className="py-2.5 px-3">Board / Institute</th>
+                                                <th className="py-2.5 px-3">Year & Roll #</th>
+                                                <th className="py-2.5 px-3">Marks</th>
+                                                <th className="py-2.5 px-3">Percentage</th>
+                                                <th className="py-2.5 px-3 text-right">Transcript</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-900">
+                                            {activeApp.student_profile.educations.map((edu) => (
+                                                <tr key={edu.id} className="hover:bg-slate-900/50 transition">
+                                                    <td className="py-2 px-3 font-semibold text-white">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase ${
+                                                                edu.degree_level === 'matric'
+                                                                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                                                    : edu.degree_level === 'intermediate'
+                                                                    ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                                                                    : 'bg-blue-950 text-blue-300 border border-blue-800'
+                                                            }`}>
+                                                                {edu.degree_level}
+                                                            </span>
+                                                            <span className="truncate max-w-[140px]">{edu.degree_title}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2 px-3 text-slate-300 truncate max-w-[130px]">
+                                                        {edu.institute_or_board}
+                                                    </td>
+                                                    <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
+                                                        {edu.passing_year} {edu.roll_number ? `(#${edu.roll_number})` : ''}
+                                                    </td>
+                                                    <td className="py-2 px-3 font-mono font-bold text-white">
+                                                        {edu.obtained_marks} / {edu.total_marks}
+                                                    </td>
+                                                    <td className="py-2 px-3">
+                                                        <span className="px-2 py-0.5 rounded-full font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                                            {edu.percentage}%
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-2 px-3 text-right">
+                                                        {edu.transcript_scan_url || edu.transcript_scan_path ? (
+                                                            <a
+                                                                href={edu.transcript_scan_url || (edu.transcript_scan_path?.startsWith('http') ? edu.transcript_scan_path : `/${edu.transcript_scan_path}`)}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 text-[10px] font-bold border border-slate-700 transition"
+                                                            >
+                                                                <ExternalLink className="h-3 w-3" />
+                                                                <span>Scan</span>
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-500 italic">None</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                                    <span>Legacy Record: Matric Marks: {activeApp.matric_obtained_marks || activeApp.student_profile?.matric_obtained_marks || 'N/A'} / {activeApp.matric_total_marks || activeApp.student_profile?.matric_total_marks || 1100}</span>
+                                    {activeApp.matric_obtained_marks && (
+                                        <span className="font-mono text-emerald-400 font-bold">
+                                            {(((activeApp.matric_obtained_marks) / (activeApp.matric_total_marks || 1100)) * 100).toFixed(1)}%
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Uploaded Documents List */}
